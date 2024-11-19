@@ -71,6 +71,7 @@ transforms = v2.Compose(
 dataset = datasets.MNIST(root='dataset/', transform=transforms, download=True)
 loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 opt_disc = optim.Adam(disc.parameters(), lr = lr)
+opt_gen = optim.Adam(disc.parameters(), lr = lr)
 criterion = nn.BCELoss()
 writer_fake = SummaryWriter(f"runs/first_gan/GAN_MNIST/fake")
 writer_real = SummaryWriter(f"runs/first_gan/GAN_MNIST/real")
@@ -88,3 +89,18 @@ for epoch in range(num_epochs):
         lossD_real = criterion(disc_real, torch.ones_like(disc_real))
         disc_fake = disc(fake).view(-1)
         lossD_fake = criterion(disc_fake, torch.zeros_like(disc_fake))
+        lossD = (lossD_real + lossD_fake) / 2
+        disc.zero_grad()
+        lossD.backward(retain_graph=True)
+        opt_disc.step()
+
+        # Train Generator: min[log(1-D(G(z)) <-> max[log(D(G(z))]
+        # the first expression leads to saturated/weak gradients; in practice, better to use second expression
+        # now we want to use `fake = gen(noise)` from previous calculation, without calculating again,
+        # but calling disc.zero_grad() clears the cache, so we can do `disc(fake.detach()).view(-1)` instead of `disc(fake).view(-1)`, or
+        # we can do lossD.backward(retain_graph=True)
+        output = disc(fake).view(-1)
+        lossG = criterion(output, torch.ones_like(output))
+        gen.zero_grad()
+        lossG.backward()
+        opt_gen.step()

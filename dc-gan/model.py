@@ -80,7 +80,7 @@ class Generator(nn.Module):
         Args:
             z_dim ():
             channels_img ():
-            features_g (): 
+            features_g ():
         """
         super(Generator, self).__init__()
         self.net = nn.Sequential(

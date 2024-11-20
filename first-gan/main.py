@@ -115,7 +115,6 @@ for epoch in range(num_epochs):
         fake_labels = torch.zeros_like(disc_fake).to(device)    # Label for fake images is 0
         lossD_fake = criterion(disc_fake, fake_labels)
         lossD = (lossD_real + lossD_fake) / 2
-        # disc.zero_grad()                            # ??
         lossD.backward(retain_graph=True)
         opt_disc.step()
 
@@ -128,7 +127,6 @@ for epoch in range(num_epochs):
         opt_gen.zero_grad()
         output = disc(fake).view(-1)
         lossG = criterion(output, real_labels)
-        # gen.zero_grad()                             # ??
         lossG.backward()
         opt_gen.step()
 

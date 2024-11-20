@@ -191,6 +191,10 @@ final_checkpoint = {
 torch.save(final_checkpoint, 'models/gan_checkpoint_final.pth')
 print("\n\nFinal model saved at models/gan_checkpoint_final.pth")
 
+# Close TensorBoard writers
+writer_fake.close()
+writer_real.close()
+writer_losses.close()
 
 """
 checkpoint = torch.load('models/gan_checkpoint_final.pth')

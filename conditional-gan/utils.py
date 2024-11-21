@@ -1,11 +1,12 @@
 import torch
 import torch.nn as nn
 
-def gradient_penalty(critic, real, fake, device='cpu'):
+def gradient_penalty(critic, labels, real, fake, device='cpu'):
     """
 
     Args:
         critic ():
+        labels ():
         real ():
         fake ():
         device ():
@@ -19,7 +20,7 @@ def gradient_penalty(critic, real, fake, device='cpu'):
     interpolated_images = epsilon * real + (1-epsilon) * fake
 
     # critic score calculation
-    mixed_scores = critic(interpolated_images)
+    mixed_scores = critic(interpolated_images, labels)
 
     gradient = torch.autograd.grad(
         inputs=interpolated_images,

@@ -13,3 +13,7 @@ w-gan-gp/__pycache__/
 w-gan-gp/runs/
 w-gan-gp/dataset/
 w-gan-gp/models/
+conditional-gan/__pycache__/
+conditional-gan/runs/
+conditional-gan/dataset/
+conditional-gan/models/

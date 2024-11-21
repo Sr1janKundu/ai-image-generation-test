@@ -16,9 +16,11 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 LEARNING_RATE = 1e-4    # try using diff lrs, one for gen and one for critic
 BATCH_SIZE = 64
 IMAGE_SIZE = 64
-CHANNELS_IMG = 3        # change to 1 for MNIST
+CHANNELS_IMG = 1
+NUM_CLASSES = 10
+GEN_EMBEDDING = 100
 Z_DIM = 100
-NUM_EPOCHS = 5
+NUM_EPOCHS = 20
 FEATURES_DISC = 64
 FEATURES_GEN = 64
 CRITIC_ITERATIONS = 5
@@ -33,11 +35,10 @@ transforms = v2.Compose(
         ]
 )
 
-# dataset = datasets.MNIST(root='dataset/MNIST_dataset/', train=True, transform=transforms, download=True)
-dataset = datasets.ImageFolder(root='dataset/celeb_dataset/', transform=transforms)
+dataset = datasets.MNIST(root='dataset/MNIST_dataset/', train=True, transform=transforms, download=True)
 loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
-gen = Generator(Z_DIM, CHANNELS_IMG, FEATURES_GEN).to(device)
-critic = Critic(CHANNELS_IMG, FEATURES_DISC).to(device)
+gen = Generator(Z_DIM, CHANNELS_IMG, FEATURES_GEN, NUM_CLASSES, IMAGE_SIZE, GEN_EMBEDDING).to(device)
+critic = Critic(CHANNELS_IMG, FEATURES_DISC, NUM_CLASSES, IMAGE_SIZE).to(device)
 init_weights(gen)
 init_weights(critic)
 
@@ -46,12 +47,9 @@ opt_critic = optim.Adam(critic.parameters(), lr = LEARNING_RATE, betas = (0.0, 0
 
 
 fixed_noise = torch.randn((32, Z_DIM, 1, 1)).to(device)
-# writer_real = SummaryWriter(f"runs/mnist/real")
-# writer_fake  = SummaryWriter(f"runs/mnist/fake")
-# writer_losses = SummaryWriter(f"runs/mnist/losses")
-writer_real = SummaryWriter(f"runs/celeb/real")
-writer_fake  = SummaryWriter(f"runs/celeb/fake")
-writer_losses = SummaryWriter(f"runs/celeb/losses")
+writer_real = SummaryWriter(f"runs/mnist/real")
+writer_fake  = SummaryWriter(f"runs/mnist/fake")
+writer_losses = SummaryWriter(f"runs/mnist/losses")
 step = 0
 
 
@@ -65,20 +63,21 @@ for epoch in range(NUM_EPOCHS):
     epoch_g_loss = 0.0
     epoch_d_loss = 0.0
     num_batches = 0
-    for batch_idx, (real, _) in tqdm(enumerate(loader), total=len(loader), desc=f"Epoch {epoch + 1}"):
+    for batch_idx, (real, labels) in tqdm(enumerate(loader), total=len(loader), desc=f"Epoch {epoch + 1}"):
         real = real.to(device)
+        labels = labels.to(device)
         num_batches += 1
 
         # train critic (previously referred to as discriminator)
         # here as per the paper, we need to train the critic mode
         for _ in range(CRITIC_ITERATIONS):
             noise = torch.rand((BATCH_SIZE, Z_DIM, 1, 1)).to(device)
-            fake = gen(noise)
+            fake = gen(noise, labels)
             opt_critic.zero_grad()
-            critic_real = critic(real).reshape(-1)
-            critic_fake = critic(fake).reshape(-1)
+            critic_real = critic(real, labels).reshape(-1)
+            critic_fake = critic(fake, labels).reshape(-1)
             # print(real.size(), critic_real.size(), fake.size(), critic_fake.size())
-            gp = gradient_penalty(critic, real, fake, device=device)
+            gp = gradient_penalty(critic, labels, real, fake, device=device)
             loss_critic = (
                 -(torch.mean(critic_real) - torch.mean(critic_fake))
                 + LAMBDA_GP * gp            # penalty
@@ -89,7 +88,7 @@ for epoch in range(NUM_EPOCHS):
 
         # Train Generator
         opt_gen.zero_grad()
-        output = critic(fake).reshape(-1)
+        output = critic(fake, labels).reshape(-1)
         loss_gen = -(torch.mean(output))
         loss_gen.backward()
         opt_gen.step()
@@ -104,15 +103,15 @@ for epoch in range(NUM_EPOCHS):
                 f"\nEpoch [{epoch + 1}/{NUM_EPOCHS}] Loss_D: {loss_critic:.4f}, Loss_G: {loss_gen:.4f}"
             )
             with torch.no_grad():
-                fake = gen(fixed_noise)
+                fake = gen(noise, labels)
                 img_grid_real = torchvision.utils.make_grid(real[:32], normalize=True)
                 img_grid_fake = torchvision.utils.make_grid(fake[:32], normalize=True)
 
                 writer_fake.add_image(
-                    "CELEB Fake Images", img_grid_fake, global_step=step
+                    "MNIST Fake Images", img_grid_fake, global_step=step
                 )
                 writer_real.add_image(
-                    "CELEB Real Images", img_grid_real, global_step=step
+                    "MNIST Real Images", img_grid_real, global_step=step
                 )
             step += 1
 
@@ -132,8 +131,8 @@ for epoch in range(NUM_EPOCHS):
             # 'generator_loss': lossG,
             # 'critic_loss': lossD
         }
-        torch.save(checkpoint, f'models/wgangp_checkpoint_epoch_{epoch + 1}.pth')
-        print(f"\nModel saved at models/wgangp_checkpoint_epoch_{epoch + 1}.pth")
+        torch.save(checkpoint, f'models/cond_wgangp_checkpoint_epoch_{epoch + 1}.pth')
+        print(f"\nModel saved at models/cond_wgangp_checkpoint_epoch_{epoch + 1}.pth")
 
 # Save final models
 final_checkpoint = {
@@ -145,8 +144,8 @@ final_checkpoint = {
     # 'generator_loss': lossG,
     # 'critic_loss': lossD
 }
-torch.save(final_checkpoint, 'models/wgangp_checkpoint_final.pth')
-print("\n\nFinal model saved at models/wgangp_checkpoint_final.pth")
+torch.save(final_checkpoint, 'models/cond_wgangp_checkpoint_final.pth')
+print("\n\nFinal model saved at models/cond_wgangp_checkpoint_final.pth")
 
 # Close TensorBoard writers
 writer_fake.close()
@@ -155,7 +154,7 @@ writer_losses.close()
 
 
 """ Usage
-checkpoint = torch.load('models/wgangp_checkpoint_final.pth')
+checkpoint = torch.load('models/cond_wgangp_checkpoint_final.pth')
 
 # Load model states
 gen.load_state_dict(checkpoint['generator_state_dict'])

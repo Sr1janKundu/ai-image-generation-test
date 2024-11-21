@@ -1,7 +1,6 @@
 """
-Improved Training of Wasserstein GANs (WGAN-GP) paper implementation (https://arxiv.org/abs/1704.00028)
-[Model is kept mostly same as that of w-gan, with batchnorm in critic blocks changed to instancenorm (in paper it is stated as layernorm, which is similar to instancenorm)]
-[Refer both layernorm2d and instancenorm2d documentations in pytorch]
+Conditional GAN paper implementation (https://arxiv.org/abs/1411.1784)
+[Model based on w-gan-gp]
 """
 
 import torch
@@ -9,18 +8,21 @@ import torch.nn as nn
 
 
 class Critic(nn.Module):
-    def __init__(self, channels_img, features_d):
+    def __init__(self, channels_img, features_d, num_classes, img_size):
         """
 
         Args:
             channels_img (): For images
             features_d (int): Channels that will change through the discriminator
+            num_classes ():
+            img_size ():
         """
         super(Critic, self).__init__()
+        self.img_size = img_size
         self.disc = nn.Sequential(
             # Input shape: (N x channels_img x 64 x 64)
             nn.Conv2d(
-                channels_img,
+                channels_img+1,
                 features_d,
                 kernel_size=4,
                 stride=2,
@@ -44,6 +46,7 @@ class Critic(nn.Module):
                         padding=1),     # 4x4
             nn.Conv2d(features_d*8, 1, kernel_size=4, stride=2, padding=0),      # 1x1
         )
+        self.embed = nn.Embedding(num_classes, img_size*img_size)
 
     def _block(self, in_channels, out_channels, kernel_size, stride, padding):
         """
@@ -72,22 +75,28 @@ class Critic(nn.Module):
             nn.LeakyReLU(0.2),
         )
 
-    def forward(self, x):
+    def forward(self, x, labels):
+        embedding = self.embed(labels).view(labels.shape[0], 1, self.img_size, self.img_size)
+        x = torch.cat([x, embedding], dim=1)    # N x C x img_size x img_size
         return self.disc(x)
 
 class Generator(nn.Module):
-    def __init__(self, z_dim, channels_img, features_g):        # features_g = 64 makes features_g*16 = 1024
+    def __init__(self, z_dim, channels_img, features_g, num_classes, img_size, embed_size):        # features_g = 64 makes features_g*16 = 1024
         """
 
         Args:
             z_dim ():
             channels_img ():
             features_g ():
+            num_classes ():
+            img_size ():
+            embed_size ():
         """
         super(Generator, self).__init__()
+        self.img_siz = img_size
         self.gen = nn.Sequential(
             # Input: N x z_dim x 1 x 1
-            self._block(z_dim,
+            self._block(z_dim+embed_size,
                         features_g * 16,
                         kernel_size=4,
                         stride=1,
@@ -114,6 +123,7 @@ class Generator(nn.Module):
                                padding=1),      # no batchnorm on last block of generator
             nn.Tanh(),      # [-1, 1]
         )
+        self.embed = nn.Embedding(num_classes, embed_size)
 
     def _block(self, in_channels, out_channels, kernel_size, stride, padding):
         """
@@ -141,7 +151,10 @@ class Generator(nn.Module):
             nn.ReLU(),
         )
 
-    def forward(self, x):
+    def forward(self, x, labels):
+        # latent vector z: N x noise_dim x 1 x 1
+        embedding = self.embed(labels).unsqueeze(2).unsqueeze(3)
+        x = torch.cat([x, embedding], dim=1)
         return self.gen(x)
 
 

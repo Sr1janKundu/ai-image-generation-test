@@ -154,6 +154,7 @@ class Generator(nn.Module):
     def forward(self, x, labels):
         # latent vector z: N x noise_dim x 1 x 1
         embedding = self.embed(labels).unsqueeze(2).unsqueeze(3)
+        # print(x.size(), embedding.size())
         x = torch.cat([x, embedding], dim=1)
         return self.gen(x)
 

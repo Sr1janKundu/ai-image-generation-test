@@ -1,6 +1,7 @@
 .idea/
 first-gan/models/
 first-gan/runs/
+first-gan/dataset/
 dc-gan/__pycache__/
 dc-gan/runs/
 dc-gan/dataset/

@@ -66,6 +66,7 @@ for epoch in range(NUM_EPOCHS):
     for batch_idx, (real, labels) in tqdm(enumerate(loader), total=len(loader), desc=f"Epoch {epoch + 1}"):
         real = real.to(device)
         labels = labels.to(device)
+        print(labels.size())
         num_batches += 1
 
         # train critic (previously referred to as discriminator)

@@ -98,7 +98,7 @@ for epoch in range(num_epochs):
     epoch_d_loss = 0.0
     num_batches = 0
 
-    for batch_idx, (real, _) in tqdm(enumerate(loader), total=len(loader)):
+    for batch_idx, (real, _) in tqdm(enumerate(loader), total=len(loader), desc=f"Epoch {epoch + 1}"):
         real = real.view(-1, 784).to(device)
         batch_size = real.shape[0]
         num_batches += 1
@@ -139,7 +139,7 @@ for epoch in range(num_epochs):
         d_acc = (d_real_acc + d_fake_acc) / 2
         writer_losses.add_scalar('Batch/Discriminator Accuracy', d_acc.item(), step)
 
-        if batch_idx == 0:
+        if batch_idx % 100 == 0:
             print(
                 f"Epoch [{epoch+1}/{num_epochs}] Loss_D: {lossD:.4f}, Loss_G: {lossG:.4f}"
             )

@@ -1,6 +1,15 @@
 .idea/
 first-gan/models/
-first-gan/runs/losses/events.out.tfevents.1732098097.miu-Precision-3650-Tower.75099.2
+first-gan/runs/
 dc-gan/__pycache__/
+dc-gan/runs/
 dc-gan/dataset/
 dc-gan/models/
+w-gan/__pycache__/
+w-gan/runs/
+w-gan/dataset/
+w-gan/models/
+w-gan-gp/__pycache__/
+w-gan-gp/runs/
+w-gan-gp/dataset/
+w-gan-gp/models/

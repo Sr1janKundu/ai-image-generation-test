@@ -1,0 +1,172 @@
+
+Epoch [1/100] Loss_D: 0.7018, Loss_G: 0.7840
+
+Epoch [1/100] Loss_D: 0.0171, Loss_G: 4.1324
+
+Epoch [1/100] Loss_D: 0.0073, Loss_G: 4.9908
+
+Epoch [1/100] Loss_D: 0.0030, Loss_G: 5.7304
+
+Epoch [1/100] Loss_D: 0.0017, Loss_G: 6.2693
+
+Epoch [1/100] Loss_D: 0.0009, Loss_G: 6.9115
+
+Epoch [1/100] Loss_D: 0.0007, Loss_G: 7.1349
+
+Epoch [1/100] Loss_D: 0.0005, Loss_G: 7.4796
+
+Epoch [1/100] Loss_D: 0.0004, Loss_G: 7.7712
+
+Epoch [1/100] Loss_D: 0.0003, Loss_G: 8.0679
+
+Epoch [1/100] Loss_D: 0.0002, Loss_G: 8.1940
+
+Epoch [1/100] Loss_D: 0.0002, Loss_G: 8.4918
+
+Epoch [1/100] Loss_D: 0.0002, Loss_G: 8.6229
+
+Epoch [1/100] Loss_D: 0.0002, Loss_G: 8.6300
+
+Epoch [1/100] Loss_D: 0.0001, Loss_G: 9.0333
+
+Epoch [1/100] Loss_D: 0.0001, Loss_G: 9.2269
+
+Epoch [2/100] Loss_D: 0.0001, Loss_G: 9.2943
+
+Epoch [2/100] Loss_D: 0.0001, Loss_G: 9.4538
+
+Epoch [2/100] Loss_D: 0.0001, Loss_G: 9.5635
+
+Epoch [2/100] Loss_D: 0.0001, Loss_G: 9.7256
+
+Epoch [2/100] Loss_D: 0.0001, Loss_G: 9.8670
+
+Epoch [2/100] Loss_D: 0.0001, Loss_G: 9.9328
+
+Epoch [2/100] Loss_D: 0.0000, Loss_G: 10.0494
+
+Epoch [2/100] Loss_D: 0.0000, Loss_G: 10.1717
+
+Epoch [2/100] Loss_D: 0.0000, Loss_G: 10.2632
+
+Epoch [2/100] Loss_D: 0.0000, Loss_G: 10.2825
+
+Epoch [2/100] Loss_D: 0.0000, Loss_G: 10.2476
+
+Epoch [2/100] Loss_D: 0.0000, Loss_G: 10.3388
+
+Epoch [2/100] Loss_D: 0.0000, Loss_G: 10.4350
+
+Epoch [2/100] Loss_D: 0.0000, Loss_G: 10.6083
+
+Epoch [2/100] Loss_D: 0.0000, Loss_G: 10.7315
+
+Epoch [2/100] Loss_D: 0.0000, Loss_G: 10.8397
+
+Epoch [3/100] Loss_D: 0.0000, Loss_G: 10.9140
+
+Epoch [3/100] Loss_D: 0.0000, Loss_G: 10.9894
+
+Epoch [3/100] Loss_D: 0.0000, Loss_G: 11.0850
+
+Epoch [3/100] Loss_D: 0.0000, Loss_G: 11.1665
+
+Epoch [3/100] Loss_D: 0.0000, Loss_G: 11.2389
+
+Epoch [3/100] Loss_D: 0.0000, Loss_G: 11.3326
+
+Epoch [3/100] Loss_D: 0.0000, Loss_G: 11.4304
+
+Epoch [3/100] Loss_D: 0.0000, Loss_G: 11.5233
+
+Epoch [3/100] Loss_D: 0.0000, Loss_G: 11.6120
+
+Epoch [3/100] Loss_D: 0.0000, Loss_G: 11.6779
+
+Epoch [3/100] Loss_D: 0.0000, Loss_G: 11.7162
+
+Epoch [3/100] Loss_D: 0.0000, Loss_G: 11.7478
+
+Epoch [3/100] Loss_D: 0.0000, Loss_G: 11.7832
+
+Epoch [3/100] Loss_D: 0.0000, Loss_G: 11.7843
+
+Epoch [3/100] Loss_D: 0.0000, Loss_G: 11.8129
+
+Epoch [3/100] Loss_D: 0.0000, Loss_G: 11.8577
+
+Epoch [4/100] Loss_D: 0.0000, Loss_G: 11.9140
+
+Epoch [4/100] Loss_D: 0.0000, Loss_G: 11.9993
+
+Epoch [4/100] Loss_D: 0.0000, Loss_G: 12.0962
+
+Epoch [4/100] Loss_D: 0.0000, Loss_G: 12.1885
+
+Epoch [4/100] Loss_D: 0.0000, Loss_G: 12.2610
+
+Epoch [4/100] Loss_D: 0.0000, Loss_G: 12.3304
+
+Epoch [4/100] Loss_D: 0.0000, Loss_G: 12.4057
+
+Epoch [4/100] Loss_D: 0.0000, Loss_G: 12.4798
+
+Epoch [4/100] Loss_D: 0.0000, Loss_G: 12.5420
+
+Epoch [4/100] Loss_D: 0.0000, Loss_G: 12.6021
+
+Epoch [4/100] Loss_D: 0.0000, Loss_G: 12.6701
+
+Epoch [4/100] Loss_D: 0.0000, Loss_G: 12.7310
+
+Epoch [4/100] Loss_D: 0.0000, Loss_G: 12.7930
+
+Epoch [4/100] Loss_D: 0.0000, Loss_G: 12.8690
+
+Epoch [4/100] Loss_D: 0.0000, Loss_G: 12.9292
+
+Epoch [4/100] Loss_D: 0.0000, Loss_G: 12.9759
+
+Epoch [5/100] Loss_D: 0.0000, Loss_G: 13.0070
+
+Epoch [5/100] Loss_D: 0.0000, Loss_G: 13.0562
+
+Epoch [5/100] Loss_D: 0.0000, Loss_G: 13.1011
+
+Epoch [5/100] Loss_D: 0.0000, Loss_G: 13.1556
+
+Epoch [5/100] Loss_D: 0.0000, Loss_G: 13.2179
+
+Epoch [5/100] Loss_D: 0.0000, Loss_G: 13.2784
+
+Epoch [5/100] Loss_D: 0.0000, Loss_G: 13.3503
+
+Epoch [5/100] Loss_D: 0.0000, Loss_G: 13.4171
+
+Epoch [5/100] Loss_D: 0.0000, Loss_G: 13.4683
+
+Epoch [5/100] Loss_D: 0.0000, Loss_G: 13.5203
+
+Epoch [5/100] Loss_D: 0.0000, Loss_G: 13.5676
+
+Epoch [5/100] Loss_D: 0.0000, Loss_G: 13.6165
+
+Epoch [5/100] Loss_D: 0.0000, Loss_G: 13.6719
+
+Epoch [5/100] Loss_D: 0.0000, Loss_G: 13.7284
+
+Epoch [5/100] Loss_D: 0.0000, Loss_G: 13.7880
+
+Epoch [5/100] Loss_D: 0.0000, Loss_G: 13.8342
+
+Epoch [6/100] Loss_D: 0.0000, Loss_G: 13.8588
+
+Epoch [6/100] Loss_D: 0.0000, Loss_G: 13.9175
+
+Epoch [6/100] Loss_D: 0.0000, Loss_G: 13.9759
+
+Epoch [6/100] Loss_D: 0.0000, Loss_G: 14.0338
+
+Epoch [6/100] Loss_D: 0.0000, Loss_G: 14.0932
+
+Epoch [6/100] Loss_D: 0.0000, Loss_G: 14.1485

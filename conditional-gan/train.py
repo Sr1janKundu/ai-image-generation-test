@@ -1,10 +1,6 @@
-"""
-Training DCGAN on MNIST and celeb dataset(s)
-"""
 
 import os
 import torch, torchvision
-import torch.nn as nn
 import torch.optim as optim
 import torchvision.datasets as datasets
 from torch.utils.data import DataLoader
@@ -12,23 +8,25 @@ from torchvision.transforms import v2
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from model import Discriminator, Generator, init_weights
-
+from model import Critic, Generator, init_weights
+from utils import gradient_penalty
 
 # Hyperparameters
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-LEARNING_RATE = 2e-4
-BATCH_SIZE = 128
+LEARNING_RATE = 1e-4    # try using diff lrs, one for gen and one for critic
+BATCH_SIZE = 64
 IMAGE_SIZE = 64
 CHANNELS_IMG = 3        # change to 1 for MNIST
 Z_DIM = 100
-NUM_EPOCHS = 100
+NUM_EPOCHS = 5
 FEATURES_DISC = 64
 FEATURES_GEN = 64
+CRITIC_ITERATIONS = 5
+LAMBDA_GP = 10
 
 transforms = v2.Compose(
     [
-        v2.Resize(IMAGE_SIZE),
+        v2.Resize((IMAGE_SIZE, IMAGE_SIZE)),
         v2.ToImage(),
         v2.ToDtype(torch.float32, scale=True),
         v2.Normalize([0.5 for _ in range(CHANNELS_IMG)], [0.5 for _ in range(CHANNELS_IMG)]),
@@ -39,13 +37,13 @@ transforms = v2.Compose(
 dataset = datasets.ImageFolder(root='dataset/celeb_dataset/', transform=transforms)
 loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 gen = Generator(Z_DIM, CHANNELS_IMG, FEATURES_GEN).to(device)
-disc = Discriminator(CHANNELS_IMG, FEATURES_DISC).to(device)
+critic = Critic(CHANNELS_IMG, FEATURES_DISC).to(device)
 init_weights(gen)
-init_weights(disc)
+init_weights(critic)
 
-opt_gen = optim.Adam(gen.parameters(), lr = LEARNING_RATE, betas=(0.5, 0.999))
-opt_disc = optim.Adam(disc.parameters(), lr = LEARNING_RATE,betas=(0.5, 0.999))
-criterion = nn.BCELoss()
+opt_gen = optim.Adam(gen.parameters(), lr = LEARNING_RATE, betas = (0.0, 0.9))
+opt_critic = optim.Adam(critic.parameters(), lr = LEARNING_RATE, betas = (0.0, 0.9))
+
 
 fixed_noise = torch.randn((32, Z_DIM, 1, 1)).to(device)
 # writer_real = SummaryWriter(f"runs/mnist/real")
@@ -61,7 +59,7 @@ step = 0
 os.makedirs('models', exist_ok=True)
 
 gen.train()
-disc.train()
+critic.train()
 
 for epoch in range(NUM_EPOCHS):
     epoch_g_loss = 0.0
@@ -70,41 +68,40 @@ for epoch in range(NUM_EPOCHS):
     for batch_idx, (real, _) in tqdm(enumerate(loader), total=len(loader), desc=f"Epoch {epoch + 1}"):
         real = real.to(device)
         num_batches += 1
-        noise = torch.rand((BATCH_SIZE, Z_DIM, 1, 1)).to(device)
-        fake = gen(noise)
 
-        # Train discriminator
-        opt_disc.zero_grad()
-        disc_real = disc(real).reshape(-1)
-        real_labels = torch.ones_like(disc_real).to(device)
-        loss_disc_real = criterion(disc_real, real_labels)
-        disc_fake = disc(fake).reshape(-1)
-        fake_labels = torch.zeros_like(disc_fake).to(device)
-        loss_disc_fake = criterion(disc_fake, fake_labels)
-        loss_disc = (loss_disc_real + loss_disc_fake) / 2
-        loss_disc.backward(retain_graph=True)
-        opt_disc.step()
+        # train critic (previously referred to as discriminator)
+        # here as per the paper, we need to train the critic mode
+        for _ in range(CRITIC_ITERATIONS):
+            noise = torch.rand((BATCH_SIZE, Z_DIM, 1, 1)).to(device)
+            fake = gen(noise)
+            opt_critic.zero_grad()
+            critic_real = critic(real).reshape(-1)
+            critic_fake = critic(fake).reshape(-1)
+            # print(real.size(), critic_real.size(), fake.size(), critic_fake.size())
+            gp = gradient_penalty(critic, real, fake, device=device)
+            loss_critic = (
+                -(torch.mean(critic_real) - torch.mean(critic_fake))
+                + LAMBDA_GP * gp            # penalty
+            )
+            loss_critic.backward(retain_graph=True)
+            opt_critic.step()
+
 
         # Train Generator
         opt_gen.zero_grad()
-        output = disc(fake).reshape(-1)
-        loss_gen = criterion(output, torch.ones_like(output).to(device))
+        output = critic(fake).reshape(-1)
+        loss_gen = -(torch.mean(output))
         loss_gen.backward()
         opt_gen.step()
 
         # Accumulate losses
         epoch_g_loss += loss_gen.item()
-        epoch_d_loss += loss_disc.item()
-        # Calculate and log discriminator accuracy
-        d_real_acc = (disc_real >= 0.5).float().mean()
-        d_fake_acc = (disc_fake < 0.5).float().mean()
-        d_acc = (d_real_acc + d_fake_acc) / 2
-        writer_losses.add_scalar('Batch/Discriminator Accuracy', d_acc.item(), step)
+        epoch_d_loss += loss_critic.item()
 
         # Print losses occasionally and print to tensorboard
         if batch_idx % 100 == 0:
             print(
-                f"\nEpoch [{epoch + 1}/{NUM_EPOCHS}] Loss_D: {loss_disc:.4f}, Loss_G: {loss_gen:.4f}"
+                f"\nEpoch [{epoch + 1}/{NUM_EPOCHS}] Loss_D: {loss_critic:.4f}, Loss_G: {loss_gen:.4f}"
             )
             with torch.no_grad():
                 fake = gen(fixed_noise)
@@ -123,33 +120,33 @@ for epoch in range(NUM_EPOCHS):
     avg_g_loss = epoch_g_loss / num_batches
     avg_d_loss = epoch_d_loss / num_batches
     writer_losses.add_scalar('Epoch/Generator Loss', avg_g_loss, epoch)
-    writer_losses.add_scalar('Epoch/Discriminator Loss', avg_d_loss, epoch)
+    writer_losses.add_scalar('Epoch/Critic Loss', avg_d_loss, epoch)
 
     if (epoch + 1) % 50 == 0:
         checkpoint = {
             'epoch': epoch,
             'generator_state_dict': gen.state_dict(),
-            'discriminator_state_dict': disc.state_dict(),
+            'critic_state_dict': critic.state_dict(),
             'generator_optimizer_state_dict': opt_gen.state_dict(),
-            'discriminator_optimizer_state_dict': opt_disc.state_dict(),
+            'critic_optimizer_state_dict': opt_critic.state_dict(),
             # 'generator_loss': lossG,
-            # 'discriminator_loss': lossD
+            # 'critic_loss': lossD
         }
-        torch.save(checkpoint, f'models/dcgan_checkpoint_epoch_{epoch + 1}.pth')
-        print(f"\nModel saved at models/dcgan_checkpoint_epoch_{epoch + 1}.pth")
+        torch.save(checkpoint, f'models/wgangp_checkpoint_epoch_{epoch + 1}.pth')
+        print(f"\nModel saved at models/wgangp_checkpoint_epoch_{epoch + 1}.pth")
 
 # Save final models
 final_checkpoint = {
     'epoch': NUM_EPOCHS,
     'generator_state_dict': gen.state_dict(),
-    'discriminator_state_dict': disc.state_dict(),
+    'critic_state_dict': critic.state_dict(),
     'generator_optimizer_state_dict': opt_gen.state_dict(),
-    'discriminator_optimizer_state_dict': opt_disc.state_dict(),
+    'critic_optimizer_state_dict': opt_critic.state_dict(),
     # 'generator_loss': lossG,
-    # 'discriminator_loss': lossD
+    # 'critic_loss': lossD
 }
-torch.save(final_checkpoint, 'models/dcgan_checkpoint_final.pth')
-print("\n\nFinal model saved at models/dcgan_checkpoint_final.pth")
+torch.save(final_checkpoint, 'models/wgangp_checkpoint_final.pth')
+print("\n\nFinal model saved at models/wgangp_checkpoint_final.pth")
 
 # Close TensorBoard writers
 writer_fake.close()
@@ -158,18 +155,18 @@ writer_losses.close()
 
 
 """ Usage
-checkpoint = torch.load('models/dcgan_checkpoint_final.pth')
+checkpoint = torch.load('models/wgangp_checkpoint_final.pth')
 
 # Load model states
 gen.load_state_dict(checkpoint['generator_state_dict'])
-disc.load_state_dict(checkpoint['discriminator_state_dict'])
+critic.load_state_dict(checkpoint['critic_state_dict'])
 
 # Load optimizer states if needed
 opt_gen.load_state_dict(checkpoint['generator_optimizer_state_dict'])
-opt_disc.load_state_dict(checkpoint['discriminator_optimizer_state_dict'])
+opt_critic.load_state_dict(checkpoint['critic_optimizer_state_dict'])
 
 # Get the epoch and loss information
 epoch = checkpoint['epoch']
 # gen_loss = checkpoint['generator_loss']
-# disc_loss = checkpoint['discriminator_loss']
+# critic_loss = checkpoint['critic_loss']
 """

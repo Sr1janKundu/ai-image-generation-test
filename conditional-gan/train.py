@@ -66,13 +66,13 @@ for epoch in range(NUM_EPOCHS):
     for batch_idx, (real, labels) in tqdm(enumerate(loader), total=len(loader), desc=f"Epoch {epoch + 1}"):
         real = real.to(device)
         labels = labels.to(device)
-        print(labels.size())
+        # print(labels.size())
         num_batches += 1
 
         # train critic (previously referred to as discriminator)
         # here as per the paper, we need to train the critic mode
         for _ in range(CRITIC_ITERATIONS):
-            noise = torch.rand((BATCH_SIZE, Z_DIM, 1, 1)).to(device)
+            noise = torch.rand((real.size(0), Z_DIM, 1, 1)).to(device)          # replace batch size with real.size(0)
             fake = gen(noise, labels)
             opt_critic.zero_grad()
             critic_real = critic(real, labels).reshape(-1)

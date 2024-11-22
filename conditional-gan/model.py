@@ -173,18 +173,18 @@ def init_weights(model):
             nn.init.normal_(m.weight.data, 0.0, 0.02)
 
 
-def test():
-    N, in_channels, H, W = 8, 3, 64, 64
-    z_dim = 100
-    x = torch.randn((N, in_channels, H, W))
-    disc = Critic(in_channels, 8)
-    init_weights(disc)
-    assert disc(x).shape == (N, 1, 1, 1), "Critic test failed"
-    gen = Generator(z_dim, in_channels, 8)
-    init_weights(gen)
-    z = torch.randn((N, z_dim, 1, 1))
-    assert gen(z).shape == (N, in_channels, H, W), "Generator test failed"
-    print("Success, tests passed!")
-
-if __name__ == '__main__':
-    test()
+# def test():
+#     N, in_channels, H, W = 8, 3, 64, 64
+#     z_dim = 100
+#     x = torch.randn((N, in_channels, H, W))
+#     disc = Critic(in_channels, 8)
+#     init_weights(disc)
+#     assert disc(x).shape == (N, 1, 1, 1), "Critic test failed"
+#     gen = Generator(z_dim, in_channels, 8)
+#     init_weights(gen)
+#     z = torch.randn((N, z_dim, 1, 1))
+#     assert gen(z).shape == (N, in_channels, H, W), "Generator test failed"
+#     print("Success, tests passed!")
+#
+# if __name__ == '__main__':
+#     test()

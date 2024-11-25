@@ -1,4 +1,5 @@
 .idea/
+dataset/
 first-gan/models/
 first-gan/runs/
 first-gan/dataset/
@@ -18,3 +19,5 @@ conditional-gan/__pycache__/
 conditional-gan/runs/
 conditional-gan/dataset/
 conditional-gan/models/
+pix2pix/__pycache__/
+pix2pix/model/

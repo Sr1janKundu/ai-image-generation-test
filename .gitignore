@@ -21,3 +21,7 @@ conditional-gan/dataset/
 conditional-gan/models/
 pix2pix/__pycache__/
 pix2pix/model/
+pix2pix/evaluation/
+cycle-gan/__pycache__/
+cycle-gan/model/
+cycle-gan/saved_images/

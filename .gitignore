@@ -25,3 +25,7 @@ pix2pix/evaluation/
 cycle-gan/__pycache__/
 cycle-gan/model/
 cycle-gan/saved_images/
+pro-gan/__pycache__/
+pro-gan/logs/
+pro-gan/model/
+pro-gan/saved_examples/

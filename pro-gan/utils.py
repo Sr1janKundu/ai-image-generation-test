@@ -59,7 +59,7 @@ def load_checkpoint(checkpoint_file, model, optimizer, lr):
     model.load_state_dict(checkpoint["state_dict"])
     optimizer.load_state_dict(checkpoint["optimizer"])
 
-    # If we don't do this then it will just have learning rate of old checkpoint
+    # If we don't do this then it will just have learning rate of old checkpoint,
     # and it will lead to many hours of debugging \:
     for param_group in optimizer.param_groups:
         param_group["lr"] = lr
@@ -76,7 +76,7 @@ def seed_everything(seed=42):
 
 def generate_examples(gen, steps, truncation=0.7, n=100):
     """
-    Tried using truncation trick here but not sure it actually helped anything, you can
+    Tried using truncation trick here but not sure if it actually helped anything, you can
     remove it if you like and just sample from torch.randn
     """
     gen.eval()

@@ -39,7 +39,7 @@ class WSConv2d(nn.Module):
         self.conv.bias = None
 
         # initialize conv layer
-        nn.init.normal_(self.conv.weight)
+        nn.init.normal_(self.conv.weight)       # the '_' in normal_ is for in-place normalization
         nn.init.zeros_(self.bias)
 
     def forward(self, x):
@@ -82,13 +82,13 @@ class Generator(nn.Module):
             WSConv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1),
             nn.LeakyReLU(0.2),
             PixelNorm(),
-        )
+        )       # make a class for weighted-scale convtranspose2d instead of using this
 
         self.initial_rgb = WSConv2d(in_channels, img_channels, kernel_size=1, stride=1, padding=0)
         self.prog_blocks, self.rgb_layers = nn.ModuleList([]), nn.ModuleList([self.initial_rgb])
 
         for i in range(len(factors)-1):
-            # factors[i] -> factors[i-1]
+            # factors[i] -> factors[i+1]
             conv_in_c = int(in_channels * factors[i])
             conv_out_c = int(in_channels * factors[i+1])
             self.prog_blocks.append(ConvBlock(conv_in_c, conv_out_c))

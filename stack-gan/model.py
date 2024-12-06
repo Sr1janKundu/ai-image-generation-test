@@ -175,7 +175,6 @@ class GeneratorStage1(nn.Module):
         pass
 
 
-
 class GeneratorStage2(nn.Module):
     """
     The stage 2 Generator

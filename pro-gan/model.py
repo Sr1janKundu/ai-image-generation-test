@@ -187,7 +187,7 @@ class Discriminator(nn.Module):
         out = self.avg_pool(self.prog_blocks[cur_step](out))
 
         # the fade_in is done first between the downscaled and the input
-        # this is opposite from the generator
+        # this is opposite to the generator
         out = self.fade_in(alpha, downscaled, out)
 
         for step in range(cur_step + 1, len(self.prog_blocks)):

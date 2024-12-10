@@ -160,7 +160,7 @@ def conv4x4(in_channels, out_channels, stride=2):
     return nn.Conv2d(in_channels, out_channels, kernel_size=4, stride=stride, padding=1, bias=False)
 
 
-def UpBlock(in_channels, out_channels):
+def upblock(in_channels, out_channels):
     """
 
     Args:
@@ -222,10 +222,10 @@ class GeneratorStage1(nn.Module):
             nn.BatchNorm1d(self.gf_dim * 4 * 4),
             nn.ReLU(inplace=True),
         )
-        self.up1 = UpBlock(self.gf_dim, self.gf_dim // 2)
-        self.up2 = UpBlock(self.gf_dim // 2, self.gf_dim // 4)
-        self.up3 = UpBlock(self.gf_dim // 4, self.gf_dim // 8)
-        self.up4 = UpBlock(self.gf_dim // 8, self.gf_dim // 16)
+        self.up1 = upblock(self.gf_dim, self.gf_dim // 2)
+        self.up2 = upblock(self.gf_dim // 2, self.gf_dim // 4)
+        self.up3 = upblock(self.gf_dim // 4, self.gf_dim // 8)
+        self.up4 = upblock(self.gf_dim // 8, self.gf_dim // 16)
         self.toRGB = nn.Sequential(
             conv3x3(self.gf_dim // 16, 3),
             nn.Tanh(),                                  # no batchnorm or ReLu on this layer,
@@ -346,10 +346,10 @@ class GeneratorStage2(nn.Module):
             [ResBlock(in_channels=self.gf_dim * 4) for _ in range(self.res_block_count)]
         )
 
-        self.up1 = UpBlock(in_channels=self.gf_dim*4, out_channels=self.gf_dim*2)       # [batch, 512, 16, 16] --> [batch, 256, 32, 32]
-        self.up2 = UpBlock(in_channels=self.gf_dim*2, out_channels=self.gf_dim)         # [batch, 256, 32, 32] --> [batch, 128, 64, 64]
-        self.up3 = UpBlock(in_channels=self.gf_dim, out_channels=self.gf_dim//2)        # [batch, 128, 64, 64] --> [batch, 64, 128, 128]
-        self.up4 = UpBlock(in_channels=self.gf_dim//2, out_channels=self.gf_dim//4)     # [batch, 64, 128, 128] --> [batch, 32, 256, 256]
+        self.up1 = upblock(in_channels=self.gf_dim * 4, out_channels=self.gf_dim * 2)       # [batch, 512, 16, 16] --> [batch, 256, 32, 32]
+        self.up2 = upblock(in_channels=self.gf_dim * 2, out_channels=self.gf_dim)         # [batch, 256, 32, 32] --> [batch, 128, 64, 64]
+        self.up3 = upblock(in_channels=self.gf_dim, out_channels=self.gf_dim // 2)        # [batch, 128, 64, 64] --> [batch, 64, 128, 128]
+        self.up4 = upblock(in_channels=self.gf_dim // 2, out_channels=self.gf_dim // 4)     # [batch, 64, 128, 128] --> [batch, 32, 256, 256]
         self.toRGB = nn.Sequential(                                                     # [batch, 32, 256, 256] --> [batch, 3, 256, 256]
             conv3x3(in_channels=self.gf_dim//4, out_channels=3),
             nn.Tanh(),
@@ -484,9 +484,9 @@ def test():
     print("---Stage 1 Discriminator step passed---")
 
     gen2 = GeneratorStage2(gen1).to(device)
-    img_stage1_fromGen2, img_stage2, mu_2, sig_2 = gen2(text_embedding, noise_vec)
-    print(f"Stage 2 Img 1 device: {img_stage1_fromGen2.device}, Stage 2 Img 2 device: {img_stage2.device}, MU device: {mu_2.device}, SD device: {sig_2.device}")
-    print(f"Stage 2 Generated Image 1 Shape: {img_stage1_fromGen2.shape}, Stage 2 Generated Image 2 Shape: {img_stage2.shape}")  # Expected: [2, 3, 64, 64], [2, 3, 256, 256]
+    img_stage1_from_gen2, img_stage2, mu_2, sig_2 = gen2(text_embedding, noise_vec)
+    print(f"Stage 2 Img 1 device: {img_stage1_from_gen2.device}, Stage 2 Img 2 device: {img_stage2.device}, MU device: {mu_2.device}, SD device: {sig_2.device}")
+    print(f"Stage 2 Generated Image 1 Shape: {img_stage1_from_gen2.shape}, Stage 2 Generated Image 2 Shape: {img_stage2.shape}")  # Expected: [2, 3, 64, 64], [2, 3, 256, 256]
     print("---Stage 2 Image generation step passed---")
 
     dis2 = DiscriminatorStage2().to(device)

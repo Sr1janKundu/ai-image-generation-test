@@ -180,6 +180,33 @@ def UpBlock(in_channels, out_channels):
     return block
 
 
+class ResBlock(nn.Module):
+    """
+    Building blocks for one residual layer in stage 2 generator (identity connection)
+    """
+    def __init__(self, in_channels):
+        """
+        Args:
+            in_channels (int):
+        """
+        super().__init__()
+        self.block = nn.Sequential(
+            conv3x3(in_channels=in_channels, out_channels=in_channels),
+            nn.BatchNorm2d(in_channels),
+            nn.ReLU(inplace=True),
+            conv3x3(in_channels=in_channels, out_channels=in_channels),
+            nn.BatchNorm2d(in_channels),
+        )
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, x):
+        residual = x
+        out = self.block(x)
+        out += residual
+        out = self.relu(out)
+        return out
+
+
 class GeneratorStage1(nn.Module):
     """
     The stage 1 Generator
@@ -286,14 +313,145 @@ class GeneratorStage2(nn.Module):
     """
     The stage 2 Generator
     """
-    pass
+    def __init__(self, gen_stage1):
+        super().__init__()
+        self.stage1gen = gen_stage1
+        # freeze the stage 1 generator
+        for param in self.stage1gen.parameters():
+            param.requires_grad = False
+
+        self.gf_dim = config.hyperparameters['cond_dim']        # 128
+        self.ca_shape = config.hyperparameters['cond_dim']      # 128
+        self.res_block_count = config.hyperparameters['stage2_gen_res_count']   # 4
+
+        self.ca = ConditionalAugmentation()
+
+        self.gen1_img_encoder = nn.Sequential(          # needs to take [batch, 3, 64, 64] to [batch, 512, 16, 16]
+            conv3x3(in_channels=3, out_channels=self.gf_dim),               # [batch, 3, 64, 64] --> [[batch, 128, 64, 64]
+            nn.ReLU(inplace=True),
+            conv4x4(in_channels=self.gf_dim, out_channels=self.gf_dim*2),   # [batch, 128, 64, 64] --> [batch, 256, 32, 32]
+            nn.BatchNorm2d(self.gf_dim*2),
+            nn.ReLU(inplace=True),                      # why not LeakyReLu??
+            conv4x4(in_channels=self.gf_dim*2, out_channels=self.gf_dim*4), # [batch, 256, 32, 32] --> [batch, 512, 16, 16]
+            nn.BatchNorm2d(self.gf_dim*4),
+            nn.ReLU(inplace=True),
+        )
+        self.joint_learn = nn.Sequential(
+            conv3x3(in_channels=self.gf_dim*4 + self.ca_shape, out_channels=self.gf_dim * 4),       # [batch, 512+128, 16, 16] --> [batch, 512, 16, 16]
+            nn.BatchNorm2d(self.gf_dim*4),
+            nn.ReLU(inplace=True),
+        )
+
+        self.residual_layers = nn.ModuleList(                           # [batch, 512, 16, 16] --(4 layers of residual blocks)--> [batch, 512, 16, 16]
+            [ResBlock(in_channels=self.gf_dim * 4) for _ in range(self.res_block_count)]
+        )
+
+        self.up1 = UpBlock(in_channels=self.gf_dim*4, out_channels=self.gf_dim*2)       # [batch, 512, 16, 16] --> [batch, 256, 32, 32]
+        self.up2 = UpBlock(in_channels=self.gf_dim*2, out_channels=self.gf_dim)         # [batch, 256, 32, 32] --> [batch, 128, 64, 64]
+        self.up3 = UpBlock(in_channels=self.gf_dim, out_channels=self.gf_dim//2)        # [batch, 128, 64, 64] --> [batch, 64, 128, 128]
+        self.up4 = UpBlock(in_channels=self.gf_dim//2, out_channels=self.gf_dim//4)     # [batch, 64, 128, 128] --> [batch, 32, 256, 256]
+        self.toRGB = nn.Sequential(                                                     # [batch, 32, 256, 256] --> [batch, 3, 256, 256]
+            conv3x3(in_channels=self.gf_dim//4, out_channels=3),
+            nn.Tanh(),
+        )
+
+    def forward(self, text_embedding, noise_vec):
+        _, stage1_img, _, _ = self.stage1gen(text_embedding, noise_vec)     # [batch, 3, 64, 64]
+        stage1_img = stage1_img.detach()        # detach from computational graph
+        stage1_img_enc = self.gen1_img_encoder(stage1_img)                  # [batch, 3, 64, 64] --> [batch, 512, 16, 16]
+
+        cond_vec, mu, logvar = self.ca(text_embedding)  # sizes: [batch, 128]
+        cond_vec = cond_vec.view(cond_vec.shape[0], self.ca_shape, 1, 1)        # [batch, 128] --> [batch, 128, 1, 1]
+        cond_vec = cond_vec.expand(cond_vec.shape[0], self.ca_shape, 16, 16)    # [batch, 128, 1, 1] --> [batch, 128, 16, 16]
+        # append with conditional augmentation vector
+        x = torch.cat([stage1_img_enc, cond_vec], dim=1)    # concatenate along channels, [batch, 512+128, 16, 16]
+
+        # jointly learn
+        x = self.joint_learn(x)         # [batch, 640, 16, 16] --> [batch, 512, 16, 16]
+
+        # residual blocks
+        for layer in self.residual_layers:      # [batch, 512, 16, 16] --(4 layers of residual blocks)--> [batch, 512, 16, 16]
+            x = layer(x)
+
+        x = self.up1(x)                 # [batch, 512, 64, 64] --> [batch, 256, 32, 32]
+        x = self.up2(x)                 # [batch, 256, 32, 32] --> [batch, 128, 64, 64]
+        x = self.up3(x)                 # [batch, 128, 64, 64] --> [batch, 64, 128, 128]
+        x = self.up4(x)                 # [batch, 64, 128, 128] --> [batch, 32, 256, 256]
+
+        # to RGB
+        stage2_img = self.toRGB(x)      # [batch, 32, 256, 256] --> [batch, 3, 256, 256]
+
+        return stage1_img, stage2_img, mu, logvar
 
 
 class DiscriminatorStage2(nn.Module):
     """
     The stage 2 Discriminator
     """
-    pass
+    def __init__(self):
+        super().__init__()
+        self.embedding_shape = config.hyperparameters['embedding_dim']  # 768
+        self.ca_shape = config.hyperparameters['cond_dim']              # 128
+        self.df_dim = config.hyperparameters['discriminator_dim']       # 64
+        self.fc = nn.Sequential(                                        # [batch, 768] --> [batch, 128]
+            nn.Linear(self.embedding_shape, self.ca_shape),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm1d(self.ca_shape),
+        )
+        self.down = nn.Sequential(
+            conv4x4(3, self.df_dim),  # [batch, 3, 256, 256] --> [batch, 64, 128, 128]
+            nn.LeakyReLU(0.2, inplace=True),  # no batchnorm after first conv
+            conv4x4(self.df_dim, self.df_dim * 2),  # [batch, 64, 128, 128] --> [batch, 128, 64, 64]
+            nn.BatchNorm2d(self.df_dim * 2),
+            nn.LeakyReLU(0.2, inplace=True),
+            conv4x4(self.df_dim * 2, self.df_dim * 4),  # [batch, 128, 64, 64] --> [batch, 256, 32, 32]
+            nn.BatchNorm2d(self.df_dim * 4),
+            nn.LeakyReLU(0.2, inplace=True),
+            conv4x4(self.df_dim * 4, self.df_dim * 8),  # [batch, 256, 32, 32] --> [batch, 512, 16, 16]
+            nn.BatchNorm2d(self.df_dim * 8),
+            nn.LeakyReLU(0.2, inplace=True),
+            conv4x4(self.df_dim * 8, self.df_dim * 16), # [batch, 512, 16, 16] --> [batch, 1024, 8, 8]
+            nn.BatchNorm2d(self.df_dim * 16),
+            nn.LeakyReLU(0.2, inplace=True),
+            conv4x4(self.df_dim * 16, self.df_dim * 32),  # [batch, 1024, 8, 8] --> [batch, 2048, 4, 4]
+            nn.BatchNorm2d(self.df_dim * 32),
+            nn.LeakyReLU(0.2, inplace=True),
+            conv3x3(in_channels=self.df_dim * 32, out_channels=self.df_dim * 16),    # [batch, 2024, 4, 4] --> [batch, 1024, 4, 4]
+            nn.BatchNorm2d(self.df_dim * 16),
+            nn.LeakyReLU(0.2, inplace=True),
+            conv3x3(in_channels=self.df_dim * 16, out_channels=self.df_dim * 8) ,    # [batch, 1024, 4, 4] --> [batch, 512, 4, 4]
+            nn.BatchNorm2d(self.df_dim * 8),
+            nn.LeakyReLU(0.2, inplace=True),
+        )
+
+        # 1x1 convolutional layer to jointly learn features across image and text
+        self.joint_conv = nn.Sequential(
+            nn.Conv2d(in_channels=self.df_dim * 8 + self.ca_shape, out_channels=self.df_dim * 2, kernel_size=1,
+                      stride=1, padding=0, bias=False),
+            nn.BatchNorm2d(self.df_dim * 2),
+            nn.LeakyReLU(0.2, inplace=True),
+        )
+
+        self.fc_out = nn.Sequential(
+            nn.Linear(self.df_dim * 2 * 4 * 4, 1),
+            nn.Sigmoid(),
+        )
+
+    def forward(self, img, text_embedding):
+        text_embedding_compressed = self.fc(text_embedding)  # [batch, 768] --> [batch, 128]
+        text_embedding_compressed = text_embedding_compressed.view(text_embedding.shape[0], self.ca_shape, 1, 1)  # Reshaped to the desired shape [batch, 128, 1, 1]
+        # Expanded to the target size while reusing values along the spatial dimensions
+        text_embedding_compressed = text_embedding_compressed.expand(text_embedding.shape[0], self.ca_shape, 4, 4)  # [batch, 128, 1, 1] --> [batch, 128, 4, 4]
+
+        img = self.down(img)  # [batch, 3, 256, 256] --> [batch, 512, 4, 4]
+        x = torch.cat((img, text_embedding_compressed), dim=1)  # concatenated along channel axis --> [batch, (512+128), 4, 4]
+
+        x = self.joint_conv(x)  # Jointly learn features across image and text, [batch, (512+128), 4, 4] --> [batch, 64*2, 4, 4]
+        x = x.view(x.size(0), -1)  # [batch, 128 * 4 * 4]   # flatten [batch, 64*2, 4, 4] --> [batch, 128 * 4 * 4]
+
+        output = self.fc_out(x)  # [batch, 128 * 4 * 4] --> [batch, 1]
+
+        return output
 
 
 def test():
@@ -315,16 +473,26 @@ def test():
     noise_vec = torch.randn(2, 100).to(device)
 
     gen1 = GeneratorStage1().to(device)
-    _, img, mu, sig = gen1(text_embedding, noise_vec)
-    print(f"Stage 1 Img device: {img.device}, MU device: {mu.device}, SD device: {sig.device}")
-    print(f"Stage 1 Generated Image Shape: {img.shape}")                        # Expected: [2, 3, 64, 64]
+    _, img_stage1, mu_1, sig_1 = gen1(text_embedding, noise_vec)
+    print(f"Stage 1 Img device: {img_stage1.device}, MU device: {mu_1.device}, SD device: {sig_1.device}")
+    print(f"Stage 1 Generated Image Shape: {img_stage1.shape}")                        # Expected: [2, 3, 64, 64]
     print("---Stage 1 Image generation step passed---")
 
     dis1 = DiscriminatorStage1().to(device)
-    score = dis1(img, text_embedding)
-    print(f"Decision scores: {score}, device: {score.device}, shape: {score.shape}")    # Expected: [2, 1]
+    score_1 = dis1(img_stage1, text_embedding)
+    print(f"Decision scores stage 1: {score_1}, device: {score_1.device}, shape: {score_1.shape}")    # Expected: [2, 1]
     print("---Stage 1 Discriminator step passed---")
 
+    gen2 = GeneratorStage2(gen1).to(device)
+    img_stage1_fromGen2, img_stage2, mu_2, sig_2 = gen2(text_embedding, noise_vec)
+    print(f"Stage 2 Img 1 device: {img_stage1_fromGen2.device}, Stage 2 Img 2 device: {img_stage2.device}, MU device: {mu_2.device}, SD device: {sig_2.device}")
+    print(f"Stage 2 Generated Image 1 Shape: {img_stage1_fromGen2.shape}, Stage 2 Generated Image 2 Shape: {img_stage2.shape}")  # Expected: [2, 3, 64, 64], [2, 3, 256, 256]
+    print("---Stage 2 Image generation step passed---")
+
+    dis2 = DiscriminatorStage2().to(device)
+    score_2 = dis2(img_stage2, text_embedding)
+    print(f"Decision scores stage 2: {score_2}, device: {score_2.device}, shape: {score_2.shape}")  # Expected: [2, 1]
+    print("---Stage 2 Discriminator step passed---")
 
 if __name__=="__main__":
     test()

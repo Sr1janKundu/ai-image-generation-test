@@ -1,6 +1,5 @@
 import os
 import random
-import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset, DataLoader, random_split
 from PIL import Image
@@ -41,10 +40,10 @@ class Flickr8k(Dataset):
         if self.trans is not None:
             img = self.trans(img)
 
-        caption = random.choice(self.captions.loc[self.images[index]][self.cap_col])
-        caption_encoded = self.text_encoder(caption).squeeze(0)
+        caption = random.choice(list(self.captions.loc[self.images[index]][self.cap_col]))
+        caption_encoded = self.text_encoder(caption).squeeze(0)                         # [1, 768] --> [768]
 
-        return img, caption_encoded
+        return img, caption_encoded, caption
 
 
 def get_flickr8k_loaders(img_dir, captions_file, idx_col = 'image', cap_col='caption', transform=None, text_encoder=get_sentence_embeddings,
@@ -113,10 +112,10 @@ def test():
 
     # Get a batch of data
     data_iter = iter(train_loader)
-    images, caption_embeddings = next(data_iter)
+    images, caption_embeddings, captions = next(data_iter)
 
     # Print caption embeddings
-    print("Caption Embedding Matrix (shape: {}):".format(caption_embeddings.shape))
+    print(f"Caption Embedding Matrix (shape: {caption_embeddings.shape})")
     print(caption_embeddings)
 
     # Plot images in a grid
@@ -130,6 +129,7 @@ def test():
         # Display image
         axes[i].imshow(img)
         axes[i].axis('off')
+        axes[i].set_title(f"{captions[i]}", fontsize=8)
 
     plt.tight_layout()
     plt.show()

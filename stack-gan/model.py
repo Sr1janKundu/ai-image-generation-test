@@ -5,53 +5,11 @@ paper: https://arxiv.org/abs/1612.03242
 
 import torch
 import torch.nn as nn
-from transformers import DistilBertTokenizer, DistilBertModel
 # import torch.nn.functional as F
 # from torch.autograd import Variable
 
 import config
-
-
-def get_sentence_embeddings(sentences,
-                            tokenizer=DistilBertTokenizer.from_pretrained("distilbert-base-uncased"),
-                            model=DistilBertModel.from_pretrained("distilbert-base-uncased"),
-                            padding=True,
-                            truncation=True,
-                            max_length=50):
-    """
-    Generate sentence embeddings
-
-    Args:
-        max_length ():
-        truncation ():
-        padding ():
-        model (): Defaults to DistilBertModel base uncased
-        tokenizer (): Defaults to DistilBertTokenizer base uncased
-        sentences (list of str): List of sentences to encode.
-
-    Returns:
-        torch.Tensor: Sentence embeddings as a 2D tensor of shape (len(sentences), hidden_size).
-    """
-
-    # Tokenize and encode sentences
-    inputs = tokenizer(sentences, return_tensors="pt", padding=padding, truncation=truncation, max_length=max_length)
-    with torch.no_grad():
-        outputs = model(**inputs)
-
-    # Use the CLS token embeddings as sentence embeddings
-    # For DistilBert,the [CLS] token is a special token that is prepended to the input sequence during tokenization.
-    # It is designed to act as a sequence-level embedding, representing the entire input sentence or document. e.g.
-    # Input: "A bird with yellow feathers."
-    # Tokenized: [CLS] A bird with yellow feathers [SEP]
-    # [CLS]: Special token representing the whole sequence.
-    # [SEP]: Special token marking the end of the sequence (useful in sentence-pair tasks).
-    embeddings = outputs.last_hidden_state[:, 0, :]  # Shape: (batch_size, hidden_size)
-
-    # or, use this which is to capture the vector summarizing the sequence by averaging all token embeddings
-    # for the cases when DistilBert is not used and there are no such token as [CLS]
-    # embeddings = outputs.last_hidden_state.mean(dim=1)
-
-    return embeddings
+from utils import get_sentence_embeddings
 
 
 class ConditionalAugmentation(nn.Module):
@@ -102,7 +60,7 @@ class ConditionalAugmentation(nn.Module):
         # eps = Variable(eps)
 
         # print(eps.requires_grad)
-        print(f"Epsilon device: {eps.device}, SD device: {std.device}, MU device: {mu.device}")
+        # print(f"Epsilon device: {eps.device}, SD device: {std.device}, MU device: {mu.device}")
         return eps.mul(std).add_(mu)
 
     def forward(self, embedding_vec):
@@ -461,6 +419,7 @@ def test():
     # text_embedding = torch.randn(2, embedding_dim).to(device)
     sentences = ['A quick brown fox', "Stomps over the lazy dog"]
     text_embedding = get_sentence_embeddings(sentences).to(device)
+    print(type(text_embedding))
     # Initialize the conditioning network
     text_conditioning = ConditionalAugmentation(embedding_dim, conditioning_dim).to(device)
 

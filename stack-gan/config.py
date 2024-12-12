@@ -1,8 +1,10 @@
 import torch
-
+from torchvision.transforms import v2
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+image_dir = '/home/srijan/Desktop/Srijan-files/seq2seq-demo/image_captioning/Flickr_8k_Images_Captions/flickr8k/images/'
+all_captions_file = '/home/srijan/Desktop/Srijan-files/seq2seq-demo/image_captioning/Flickr_8k_Images_Captions/flickr8k/captions.txt'
 
 hyperparameters = {
     "upsampling_mode": "nearest",
@@ -12,3 +14,17 @@ hyperparameters = {
     "discriminator_dim": 64,
     "stage2_gen_res_count": 4,      # two residual blocks for 128x128 models, 4 for 256x256 blocks
 }
+
+img_trans_stage1 = v2.Compose([
+    v2.Resize((64, 64)),
+    v2.ToImage(),
+    v2.ToDtype(torch.float32, scale=True),
+    v2.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+])
+
+img_trans_stage2 = v2.Compose([
+    v2.Resize((256, 256)),
+    v2.ToImage(),
+    v2.ToDtype(torch.float32, scale=True),
+    v2.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+])

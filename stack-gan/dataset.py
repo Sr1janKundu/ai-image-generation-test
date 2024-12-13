@@ -86,6 +86,40 @@ def get_flickr8k_loaders(img_dir, captions_file, idx_col = 'image', cap_col='cap
     return train_loader, val_loader
 
 
+def get_flickr8k_loader(img_dir, captions_file, idx_col = 'image', cap_col='caption', transform=None, text_encoder=get_sentence_embeddings,
+                         batch_size=16, shuffle=True, num_workers=8):
+    """
+    Create train and validation DataLoaders for the Flickr8k dataset.
+
+    Args:
+        img_dir (str): Directory containing images.
+        captions_file (str): Path to the CSV file with captions.
+        idx_col (str): Column in the CSV file containing image names.
+        cap_col (str): Column in the CSV file containing captions.
+        transform (callable, optional): Transformations to apply to images.
+        text_encoder (callable, optional): Function to encode text captions.
+        batch_size (int, optional): Batch size for DataLoaders.
+        shuffle (bool, optional): Whether to shuffle the dataset.
+        num_workers (int, optional): Number of subprocesses to use for data loading.
+
+    Returns:
+        dataloader with all data
+    """
+    dataset = Flickr8k(
+        img_dir=img_dir,
+        captions_file=captions_file,
+        idx_col=idx_col,
+        cap_col=cap_col,
+        transform=transform,
+        text_encoder=text_encoder
+    )
+
+    # Create DataLoader
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
+
+    return loader
+
+
 def test():
     def reverse_transforms(image_tensor):
         # Inverse normalization
@@ -110,8 +144,20 @@ def test():
         num_workers=4
     )
 
+    loader = get_flickr8k_loader(
+        img_dir=image_dir,
+        captions_file=all_captions_file,
+        transform=img_trans_stage2,
+        text_encoder=get_sentence_embeddings,
+        batch_size=8,
+        shuffle=True,
+        num_workers=4
+    )
+
     # Get a batch of data
-    data_iter = iter(train_loader)
+    # data_iter = iter(train_loader)
+    data_iter = iter(loader)
+
     images, caption_embeddings, captions = next(data_iter)
 
     # Print caption embeddings

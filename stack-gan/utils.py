@@ -46,3 +46,42 @@ def get_sentence_embeddings(sentences,
     # embeddings = outputs.last_hidden_state.mean(dim=1)
 
     return embeddings
+
+
+def KL_loss(mu, logvar):
+    """
+    KL Divergence loss (from official implementation)
+    Args:
+        mu ():
+        logvar ():
+
+    Returns:
+
+    """
+    # -0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
+    KLD_element = mu.pow(2).add_(logvar.exp()).mul_(-1).add_(1).add_(logvar)
+    KLD = torch.mean(KLD_element).mul_(-0.5)
+    return KLD
+
+
+def weights_init(m):
+    """
+    Weight initialization (from official implementation)
+    Args:
+        m ():
+
+    Returns:
+
+    Usage:
+    net.apply(weights_init)
+    """
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        m.weight.data.normal_(0.0, 0.02)
+    elif classname.find('BatchNorm') != -1:
+        m.weight.data.normal_(1.0, 0.02)
+        m.bias.data.fill_(0)
+    elif classname.find('Linear') != -1:
+        m.weight.data.normal_(0.0, 0.02)
+        if m.bias is not None:
+            m.bias.data.fill_(0.0)

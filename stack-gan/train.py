@@ -30,7 +30,9 @@ def train(
         lr_scheduler_dis_s1,
         lr_scheduler_gen_s2,
         lr_scheduler_dis_s2,
-        loader,
+        loader_s1,
+        loader_s2,
+        train_stage_2,
         tb_step,
         writer,
 ):
@@ -55,14 +57,16 @@ def train(
         lr_scheduler_dis_s1 (): Learning rate scheduler for stage 1 discriminator
         lr_scheduler_gen_s2 (): Learning rate scheduler for stage 2 generator
         lr_scheduler_dis_s2 (): Learning rate scheduler for stage 2 discriminator
-        loader (): Dataloader
+        loader_s1 (): Dataloader for stage 1
+        loader_s2 (): Dataloader for stage 2
+        train_stage_2 (bool): Whether to train stage 2 or not
         tb_step (): Tensorboard step
         writer (): Tensorboard writer
 
     Returns:
 
     """
-    loop = tqdm(loader, leave=True, desc=f"Epoch: {epoch+1}")
+    loop = tqdm(loader_s1, leave=True, desc=f"Epoch: {epoch+1}")
 
     for batch_idx, (img, caps_emb, captions) in enumerate(loop):
         img = img.to(config.device)
@@ -131,6 +135,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="StackGAN training")
+    # parser.add_argument()
     # parser.add_argument()
     # parser.add_argument()
     # parser.add_argument()

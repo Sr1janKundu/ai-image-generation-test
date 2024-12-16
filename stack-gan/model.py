@@ -37,7 +37,6 @@ class ConditionalAugmentation(nn.Module):
         Returns:
 
         """
-        print(text_embedding.device)
         x = self.relu(self.fc(text_embedding))
         mu = x[:, :self.output_dim]
         logvar = x[:, self.output_dim:]

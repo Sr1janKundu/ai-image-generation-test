@@ -6,6 +6,7 @@ from PIL import Image
 from utils import get_sentence_embeddings
 import matplotlib.pyplot as plt
 
+import utils
 from config import image_dir, all_captions_file, img_trans_stage1, img_trans_stage2
 
 class Flickr8k(Dataset):
@@ -121,18 +122,6 @@ def get_flickr8k_loader(img_dir, captions_file, idx_col = 'image', cap_col='capt
 
 
 def test():
-    def reverse_transforms(image_tensor):
-        # Inverse normalization
-        image_tensor = image_tensor * 0.5 + 0.5  # Reverse normalization
-
-        # Convert to uint8
-        image_tensor = (image_tensor * 255).clamp(0, 255).byte()
-
-        # Convert back to a numpy array for display
-        image_array = image_tensor.permute(1, 2, 0).cpu().numpy()
-
-        return image_array
-
     train_loader, val_loader = get_flickr8k_loaders(
         img_dir=image_dir,
         captions_file=all_captions_file,
@@ -170,7 +159,7 @@ def test():
 
     for i in range(8):
         # Convert image tensor to numpy array for display
-        img = reverse_transforms(images[i])
+        img = utils.reverse_transforms(images[i])
 
         # Display image
         axes[i].imshow(img)

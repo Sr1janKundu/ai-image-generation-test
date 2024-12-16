@@ -3,8 +3,30 @@ Some code are taken from original implementation
 """
 
 import os
+import matplotlib.pyplot as plt
 import torch
 from transformers import DistilBertTokenizer, DistilBertModel
+
+
+def reverse_transforms(image_tensor):
+    """
+    Reverse the image transformations for viewing and logging
+    Args:
+        image_tensor ():
+
+    Returns:
+
+    """
+    # Inverse normalization
+    image_tensor = image_tensor * 0.5 + 0.5  # Reverse normalization
+
+    # Convert to uint8
+    image_tensor = (image_tensor * 255).clamp(0, 255).byte()
+
+    # Convert back to a numpy array for display
+    image_array = image_tensor.permute(1, 2, 0).cpu().numpy()
+
+    return image_array
 
 
 def get_sentence_embeddings(sentences,
@@ -97,11 +119,10 @@ def save_checkpoint(
         s1_disc_optimizer,
         s2_gen_optimizer,
         s2_disc_optimizer,
-        learning_rate,
+        learning_rate_1,
+        learning_rate_2,
         epoch,
         loss_dict,
-        s1_batch_size,
-        s2_batch_size,
         checkpoint_dir='checkpoints',
         filename=None
 ):
@@ -117,11 +138,10 @@ def save_checkpoint(
         s1_disc_optimizer (torch.optim.Optimizer): Optimizer for the stage 1 discriminator
         s2_gen_optimizer (torch.optim.Optimizer): Optimizer for the stage 2 generator
         s2_disc_optimizer (torch.optim.Optimizer): Optimizer for the stage 2 discriminator
-        learning_rate (float): Current learning rate
+        learning_rate_1 (float): Current learning rate for stage 1
+        learning_rate_2 (float): Current learning rate for stage 2
         epoch (int): Current training epoch
         loss_dict (dict): Dictionary of losses to track
-        s1_batch_size (int): Batch size for stage 1 gan
-        s2_batch_size (int): Batch size for stage 2 gan
         checkpoint_dir (str, optional): Directory to save checkpoints. Defaults to 'checkpoints'.
         filename (str, optional): Custom filename for the checkpoint.
                                   If None, a default naming scheme is used.
@@ -149,8 +169,14 @@ def save_checkpoint(
         # Training metadata
         'epoch': epoch,
         'learning_rate': {
-            'generator': learning_rate,
-            'discriminator': learning_rate  # Assuming same LR for both, modify if different
+            'stage1': {
+                'generator': learning_rate_1,
+                'discriminator': learning_rate_1
+            },
+            'stage2': {
+                'generator': learning_rate_2,
+                'discriminator': learning_rate_2
+            },
         },
 
         # Losses and other tracking metrics
@@ -158,8 +184,7 @@ def save_checkpoint(
 
         # Additional training context (optional)
         'training_config': {
-            's1_batch_size': s1_batch_size,
-            's2_batch_size': s2_batch_size,
+            'batch_size': None,
             'dataset': None,
             'model_config': None
         }
@@ -197,14 +222,14 @@ def load_checkpoint(
 
     Args:
         checkpoint_path (str): Path to the checkpoint file
-        generator (torch.nn.Module): The generator model to load state into
-        discriminator (torch.nn.Module): The discriminator model to load state into
-        generator (torch.nn.Module): The generator model to load state into
-        discriminator (torch.nn.Module): The discriminator model to load state into
-        gen_optimizer (torch.optim.Optimizer): Optimizer for the generator
-        disc_optimizer (torch.optim.Optimizer): Optimizer for the discriminator
-        gen_optimizer (torch.optim.Optimizer): Optimizer for the generator
-        disc_optimizer (torch.optim.Optimizer): Optimizer for the discriminator
+        s1_generator (torch.nn.Module): The stage 1 generator model to load state into
+        s1_discriminator (torch.nn.Module): The stage 1 discriminator model to load state into
+        s2_generator (torch.nn.Module): The stage 2 generator model to load state into
+        s2_discriminator (torch.nn.Module): The stage 2 discriminator model to load state into
+        s1_gen_optimizer (torch.optim.Optimizer): Optimizer for the stage 1 generator
+        s1_disc_optimizer (torch.optim.Optimizer): Optimizer for the stage 1 discriminator
+        s2_gen_optimizer (torch.optim.Optimizer): Optimizer for the stage 2 generator
+        s2_disc_optimizer (torch.optim.Optimizer): Optimizer for the stage 2 discriminator
         device (torch.device, optional): Device to load the checkpoint on
 
     Returns:
@@ -217,12 +242,16 @@ def load_checkpoint(
         checkpoint = torch.load(checkpoint_path)
 
     # Load model state dictionaries
-    generator.load_state_dict(checkpoint['generator_state_dict'])
-    discriminator.load_state_dict(checkpoint['discriminator_state_dict'])
+    s1_generator.load_state_dict(checkpoint['s1_generator_state_dict'])
+    s2_generator.load_state_dict(checkpoint['s2_generator_state_dict'])
+    s1_discriminator.load_state_dict(checkpoint['s2_discriminator_state_dict'])
+    s2_discriminator.load_state_dict(checkpoint['s2_discriminator_state_dict'])
 
     # Load optimizer state dictionaries
-    gen_optimizer.load_state_dict(checkpoint['generator_optimizer_state_dict'])
-    disc_optimizer.load_state_dict(checkpoint['discriminator_optimizer_state_dict'])
+    s1_gen_optimizer.load_state_dict(checkpoint['s1_generator_optimizer_state_dict'])
+    s2_gen_optimizer.load_state_dict(checkpoint['s2_generator_optimizer_state_dict'])
+    s1_disc_optimizer.load_state_dict(checkpoint['s1_discriminator_optimizer_state_dict'])
+    s2_disc_optimizer.load_state_dict(checkpoint['s2_discriminator_optimizer_state_dict'])
 
     # Restore learning rates (if available)
     learning_rates = checkpoint.get('learning_rate', {})
@@ -231,28 +260,104 @@ def load_checkpoint(
     restored_info = {
         'epoch': checkpoint.get('epoch', 0),
         'learning_rates': {
-            'generator': learning_rates.get('generator', None),
-            'discriminator': learning_rates.get('discriminator', None)
+            's1_generator': learning_rates['stage1'].get('generator', 2e-4),
+            's2_generator': learning_rates.get['stage2'].get('generator', 2e-4),
+            's1_discriminator': learning_rates['stage1'].get('discriminator', 2e-4),
+            's2_discriminator': learning_rates['stage2'].get('discriminator', 2e-4),
         },
         'losses': checkpoint.get('losses', {}),
         'training_config': checkpoint.get('training_config', {})
     }
 
     # Optional: Update optimizer learning rates if needed
-    # Note: This depends on your specific optimizer setup
-    # For example, with SGD or Adam:
-    for param_group in gen_optimizer.param_groups:
-        if restored_info['learning_rates']['generator']:
-            param_group['lr'] = restored_info['learning_rates']['generator']
+    for param_group in s1_gen_optimizer.param_groups:
+        if restored_info['learning_rates']['s1_generator']:
+            # param_group['lr_stage1_gen'] = restored_info['learning_rates']['s1_generator']
+            param_group['lr'] = restored_info['learning_rates']['s1_generator']
 
-    for param_group in disc_optimizer.param_groups:
-        if restored_info['learning_rates']['discriminator']:
-            param_group['lr'] = restored_info['learning_rates']['discriminator']
+    for param_group in s2_gen_optimizer.param_groups:
+        if restored_info['learning_rates']['s2_generator']:
+            # param_group['lr_stage2_gen'] = restored_info['learning_rates']['s2_generator']
+            param_group['lr'] = restored_info['learning_rates']['s2_generator']
+
+    for param_group in s1_disc_optimizer.param_groups:
+        if restored_info['learning_rates']['s1_discriminator']:
+            # param_group['lr_stage2_gen'] = restored_info['learning_rates']['s1_discriminator']
+            param_group['lr'] = restored_info['learning_rates']['s1_discriminator']
+
+    for param_group in s2_disc_optimizer.param_groups:
+        if restored_info['learning_rates']['s2_discriminator']:
+            # param_group['lr_stage2_dis'] = restored_info['learning_rates']['s2_discriminator']
+            param_group['lr'] = restored_info['learning_rates']['s2_discriminator']
 
     print(f"Checkpoint loaded from {checkpoint_path}")
     print(f"Resumed from epoch {restored_info['epoch']}")
 
     return restored_info
 
-def tb_log(*args):
-    pass
+
+def image_grid_for_tb(num_images, images, captions):
+    """
+    Returns a grid with images and captions for tensorboard plotting
+    Args:
+        num_images (int): Number of images in batch
+        images (torch.tensor): A batch of images (C, H, W) or (B, C, H, W).
+        captions (List[str]): A list of captions for the images.
+
+    Returns:
+
+    """
+    fig, axes = plt.subplots(1, num_images, figsize=(num_images * 4, 4))
+
+    if num_images == 1:  # Handle the case for a single image
+        axes = [axes]
+
+    for i in range(num_images):
+        # Convert image tensor to numpy array for display
+        img = reverse_transforms(images[i])
+
+        # Display image
+        axes[i].imshow(img)
+        axes[i].axis('off')
+        axes[i].set_title(f"{captions[i]}", fontsize=8)
+
+    plt.tight_layout()
+    return fig
+
+
+def tb_log(stage,
+           batch_idx,
+           loss_gen,
+           loss_dis,
+           real_img,
+           caps,
+           fake_img,
+           tb_step,
+           writer):
+    """
+    Helper function to log metrics and images for a specific stage
+
+    Args:
+        stage (str): 'stage1' or 'stage2'
+        batch_idx (int): Current batch index
+        loss_gen (torch.Tensor): Generator loss
+        loss_dis (torch.Tensor): Discriminator loss
+        real_img (torch.Tensor): Real images
+        caps (): Captions
+        fake_img (torch.Tensor): Generated fake images
+        tb_step (int): Global TensorBoard step counter
+        writer (SummaryWriter): TensorBoard writer
+    """
+    # Log losses every iteration
+    writer.add_scalar(f'{stage}/generator_loss', loss_gen.item(), tb_step)
+    writer.add_scalar(f'{stage}/discriminator_loss', loss_dis.item(), tb_step)
+
+    # Log images and captions every 50 iterations
+    if batch_idx % 50 == 0:
+        # Take first 5 images, captions, and generated images
+        num_images = min(5, real_img.size(0))
+        with torch.no_grad():
+            fig_real = image_grid_for_tb(num_images, real_img[:num_images], caps[:num_images])
+            fig_fake = image_grid_for_tb(num_images, fake_img[:num_images], caps[:num_images])
+            writer.add_figure("Real", fig_real, global_step=tb_step, close=True)
+            writer.add_figure("Fake", fig_fake, global_step=tb_step, close=True)

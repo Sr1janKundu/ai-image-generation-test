@@ -247,7 +247,7 @@ class DiscriminatorStage1(nn.Module):
         )
         self.fc_out = nn.Sequential(
             nn.Linear(self.df_dim * 2 * 4 * 4, 1),
-            nn.Sigmoid(),
+            # nn.Sigmoid(),
         )
 
     def forward(self, img, text_embedding):
@@ -392,7 +392,7 @@ class DiscriminatorStage2(nn.Module):
 
         self.fc_out = nn.Sequential(
             nn.Linear(self.df_dim * 2 * 4 * 4, 1),
-            nn.Sigmoid(),
+            # nn.Sigmoid(),
         )
 
     def forward(self, img, text_embedding):
@@ -438,7 +438,7 @@ def test():
     print("---Stage 1 Image generation step passed---")
 
     dis1 = DiscriminatorStage1().to(device)
-    score_1 = dis1(img_stage1, text_embedding)
+    score_1 = torch.sigmoid(dis1(img_stage1, text_embedding))
     print(f"Decision scores stage 1: {score_1}, device: {score_1.device}, shape: {score_1.shape}")    # Expected: [2, 1]
     print("---Stage 1 Discriminator step passed---")
 
@@ -449,9 +449,21 @@ def test():
     print("---Stage 2 Image generation step passed---")
 
     dis2 = DiscriminatorStage2().to(device)
-    score_2 = dis2(img_stage2, text_embedding)
+    score_2 = torch.sigmoid(dis2(img_stage2, text_embedding))
     print(f"Decision scores stage 2: {score_2}, device: {score_2.device}, shape: {score_2.shape}")  # Expected: [2, 1]
     print("---Stage 2 Discriminator step passed---")
 
+
 if __name__=="__main__":
     test()
+
+
+"""
+Note: Using sigmoid in last discriminator layers and then using torch.nn.BCELoss() will throw the following error:
+    RuntimeError: torch.nn.functional.binary_cross_entropy and torch.nn.BCELoss are unsafe to autocast.
+    Many models use a sigmoid layer right before the binary cross entropy layer.
+    In this case, combine the two layers using torch.nn.functional.binary_cross_entropy_with_logits
+    or torch.nn.BCEWithLogitsLoss.  binary_cross_entropy_with_logits and BCEWithLogits are
+    safe to autocast.
+I   Instead, use torch.nn.BCEWithLogitsLoss()
+"""

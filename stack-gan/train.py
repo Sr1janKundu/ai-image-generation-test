@@ -249,7 +249,7 @@ def main(args):
 
     if config.load_stage1:
         info1 = utils.load_checkpoint(
-            checkpoint_path='checkpoints/stackgan_checkpoint_epoch_20.pth',
+            checkpoint_path=os.path.join('checkpoints', args.checkpoint),
             s1_generator=stage1_gen,
             s1_discriminator=stage1_dis,
             s2_generator=stage2_gen,
@@ -267,7 +267,7 @@ def main(args):
 
     if config.load_stage2:
         info2 = utils.load_checkpoint(
-            checkpoint_path='checkpoints/stackgan_checkpoint_epoch_20.pth',
+            checkpoint_path=os.path.join('checkpoints', args.checkpoint),
             s1_generator=stage1_gen,
             s1_discriminator=stage1_dis,
             s2_generator=stage2_gen,
@@ -370,5 +370,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="StackGAN training")
     parser.add_argument('--epochs', type=int, default=1200, help="Number of epochs")
     parser.add_argument('--train-s2', type=bool, default=True, help="Whether to train stage 2")
+    parser.add_argument('--checkpoint', type=str, help="Name of latest checkpoint file")
 
     main(parser.parse_args())

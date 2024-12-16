@@ -261,7 +261,7 @@ def load_checkpoint(
         'epoch': checkpoint.get('epoch', 0),
         'learning_rates': {
             's1_generator': learning_rates['stage1'].get('generator', 2e-4),
-            's2_generator': learning_rates.get['stage2'].get('generator', 2e-4),
+            's2_generator': learning_rates['stage2'].get('generator', 2e-4),
             's1_discriminator': learning_rates['stage1'].get('discriminator', 2e-4),
             's2_discriminator': learning_rates['stage2'].get('discriminator', 2e-4),
         },

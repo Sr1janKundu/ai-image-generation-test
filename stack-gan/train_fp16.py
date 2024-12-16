@@ -21,6 +21,10 @@ def train(
         opt_dis_s1,
         opt_gen_s2,
         opt_dis_s2,
+        g_s1_scaler,
+        d_s1_scaler,
+        g_s2_scaler,
+        d_s2_scaler,
         criterion,
         lr_scheduler_gen_s1,
         lr_scheduler_dis_s1,
@@ -44,6 +48,10 @@ def train(
         opt_dis_s1 (): Optimizer for stage 1 discriminator
         opt_gen_s2 (): Optimizer for stage 2 generator
         opt_dis_s2 (): Optimizer for stage 2 discriminator
+        g_s1_scaler (): Scaler for stage 1 generator
+        d_s1_scaler (): Scaler for stage 1 discriminator
+        g_s2_scaler (): Scaler for stage 2 generator
+        d_s2_scaler (): Scaler for stage 2 discriminator
         criterion (): Loss function
         lr_scheduler_gen_s1 (): Learning rate scheduler for stage 1 generator
         lr_scheduler_dis_s1 (): Learning rate scheduler for stage 1 discriminator
@@ -80,49 +88,56 @@ def train(
             noise_vec = torch.FloatTensor(curr_batch_size_s2, config.hyperparameters['latent_dim']).normal_(0.0, 1.0, generator=torch.manual_seed(42)).to(config.device)
 
             # train stage 2 discriminator
-            _, img_stage2, mu_2, sig_2 = gen_s2(cap_emb, noise_vec)
+            with torch.amp.autocast('cuda'):
+                _, img_stage2, mu_2, sig_2 = gen_s2(cap_emb, noise_vec)
 
-            # for real images
-            dis_s2_real = dis_s2(img, cap_emb)
+                # for real images
+                dis_s2_real = dis_s2(img, cap_emb)
 
-            # for fake images
-            dis_s2_fake_g1 = dis_s1(img, torch.roll(cap_emb, 1, 0))
-            dis_s2_fake_g2 = dis_s1(img_stage2.detach(), cap_emb)  # .detach() in order to reuse dis_s1_real in calculating stage1 generator loss
+                # for fake images
+                dis_s2_fake_g1 = dis_s1(img, torch.roll(cap_emb, 1, 0))
+                dis_s2_fake_g2 = dis_s1(img_stage2.detach(),
+                                        cap_emb)  # .detach() in order to reuse dis_s1_real in calculating stage1 generator loss
 
-            # positive labels
-            pos_labels = torch.ones_like(dis_s2_real).to(config.device)
-            # negative labels
-            neg_labels = torch.zeros_like(dis_s2_fake_g1).to(config.device)
+                # positive labels
+                pos_labels = torch.ones_like(dis_s2_real).to(config.device)
+                # negative labels
+                neg_labels = torch.zeros_like(dis_s2_fake_g1).to(config.device)
 
-            # calculate stage 2 discriminator loss
-            # positive sample pairs
-            stage2dis_pos_loss = criterion(dis_s2_real, pos_labels)
+                # calculate stage 2 discriminator loss
+                # positive sample pairs
+                stage2dis_pos_loss = criterion(dis_s2_real, pos_labels)
 
-            # negative sample pairs
-            # group 1: real images with mismatched text embeddings
-            stage2dis_neg_loss_grp1 = criterion(dis_s2_fake_g1, neg_labels)
-            # group 2: synthetic images with their corresponding text embeddings
-            stage2dis_neg_loss_grp2 = criterion(dis_s2_fake_g2, neg_labels)
+                # negative sample pairs
+                # group 1: real images with mismatched text embeddings
+                stage2dis_neg_loss_grp1 = criterion(dis_s2_fake_g1, neg_labels)
+                # group 2: synthetic images with their corresponding text embeddings
+                stage2dis_neg_loss_grp2 = criterion(dis_s2_fake_g2, neg_labels)
 
-            # stage 2 discriminator loss
-            loss_dis_s2 = stage2dis_pos_loss + (stage2dis_neg_loss_grp1 + stage2dis_neg_loss_grp2) * 0.5
-            loss_dis_s2.backward()
-            opt_dis_s2.step()
+                # stage 2 discriminator loss
+                loss_dis_s2 = stage2dis_pos_loss + (stage2dis_neg_loss_grp1 + stage2dis_neg_loss_grp2) * 0.5
 
-            loss_dis_s2_avg = loss_dis_s2.item() / len(loader_s2)
+            d_s2_scaler.scale(loss_dis_s2).backward()
+            d_s2_scaler.step(opt_dis_s2)
+            d_s2_scaler.update()
+
+            loss_dis_s2_avg = loss_dis_s2 / len(loader_s2)
 
             # train stage 2 generator
-            dis_s2_fake = dis_s1(img_stage2, cap_emb)
-            # calculate loss
-            stage2_neg_loss = criterion(dis_s2_fake, pos_labels)
-            stage2_kl_div = utils.KL_loss(mu=mu_2, logvar=sig_2)
+            with torch.amp.autocast('cuda'):
+                dis_s2_fake = dis_s1(img_stage2, cap_emb)
+                # calculate loss
+                stage2_neg_loss = criterion(dis_s2_fake, pos_labels)
+                stage2_kl_div = utils.KL_loss(mu=mu_2, logvar=sig_2)
 
-            # stage 2 generator loss
-            loss_gen_s2 = stage2_neg_loss + config.hyperparameters['gen_loss_kld_reg_param'] * stage2_kl_div
-            loss_gen_s2.backward()
-            opt_gen_s2.step()
+                # stage 2 generator loss
+                loss_gen_s2 = stage2_neg_loss + config.hyperparameters['gen_loss_kld_reg_param'] * stage2_kl_div
 
-            loss_gen_s2_avg = loss_gen_s2.item() / len(loader_s2)
+            g_s2_scaler.scale(loss_gen_s2).backward()
+            g_s2_scaler.step(opt_gen_s2)
+            g_s2_scaler.update()
+
+            loss_gen_s2_avg = loss_gen_s2 / len(loader_s2)
 
         # update learning rate
         lr_scheduler_gen_s2.step()
@@ -156,46 +171,52 @@ def train(
             noise_vec = torch.FloatTensor(curr_batch_size_s1, config.hyperparameters['latent_dim']).normal_(0.0, 1.0, generator=torch.manual_seed(42)).to(config.device)
 
             # train stage 1 discriminator
-            _, img_stage1, mu_1, sig_1 = gen_s1(caps_emb, noise_vec)
-            # for real images
-            dis_s1_real = dis_s1(img, caps_emb)
+            with torch.amp.autocast('cuda'):
+                _, img_stage1, mu_1, sig_1 = gen_s1(caps_emb, noise_vec)
+                # for real images
+                dis_s1_real = dis_s1(img, caps_emb)
 
-            # for fake images
-            dis_s1_fake_g1 = dis_s1(img, torch.roll(caps_emb, 1, 0))
-            dis_s1_fake_g2 = dis_s1(img_stage1.detach(), caps_emb)
+                # for fake images
+                dis_s1_fake_g1 = dis_s1(img, torch.roll(caps_emb, 1, 0))
+                dis_s1_fake_g2 = dis_s1(img_stage1.detach(), caps_emb)      # .detach() in order to reuse dis_s1_real in calculating stage1 generator loss
 
-            # positive labels
-            pos_labels = torch.ones_like(dis_s1_real).to(config.device)
-            # negative labels
-            neg_labels = torch.zeros_like(dis_s1_fake_g1).to(config.device)
+                # positive labels
+                pos_labels = torch.ones_like(dis_s1_real).to(config.device)
+                # negative labels
+                neg_labels = torch.zeros_like(dis_s1_fake_g1).to(config.device)
 
-            # calculate stage 1 discriminator loss
-            # positive sample pairs
-            stage1dis_pos_loss = criterion(dis_s1_real, pos_labels)
+                # calculate stage 1 discriminator loss
+                # positive sample pairs
+                stage1dis_pos_loss = criterion(dis_s1_real, pos_labels)
 
-            # negative sample pairs
-            # group 1: real images with mismatched text embeddings
-            stage1dis_neg_loss_grp1 = criterion(dis_s1_fake_g1, neg_labels)
-            # group 2: synthetic images with their corresponding text embeddings
-            stage1dis_neg_loss_grp2 = criterion(dis_s1_fake_g2, neg_labels)
+                # negative sample pairs
+                # group 1: real images with mismatched text embeddings
+                stage1dis_neg_loss_grp1 = criterion(dis_s1_fake_g1, neg_labels)
+                # group 2: synthetic images with their corresponding text embeddings
+                stage1dis_neg_loss_grp2 = criterion(dis_s1_fake_g2, neg_labels)
 
-            # stage 1 discriminator loss
-            loss_dis_s1 = stage1dis_pos_loss + (stage1dis_neg_loss_grp1 + stage1dis_neg_loss_grp2) * 0.5
-            loss_dis_s1.backward()
-            opt_dis_s1.step()
+                # stage 1 discriminator loss
+                loss_dis_s1 = stage1dis_pos_loss + (stage1dis_neg_loss_grp1 + stage1dis_neg_loss_grp2) * 0.5
+
+            d_s1_scaler.scale(loss_dis_s1).backward()
+            d_s1_scaler.step(opt_dis_s1)
+            d_s1_scaler.update()
 
             loss_dis_s1_avg = loss_dis_s1.item() / len(loader_s1)
 
             # train stage 1 generator
-            dis_s1_fake = dis_s1(img_stage1, caps_emb)
-            # calculate loss
-            stage1_neg_loss = criterion(dis_s1_fake, pos_labels)
-            stage1_kl_div = utils.KL_loss(mu=mu_1, logvar=sig_1)
+            with torch.amp.autocast('cuda'):
+                dis_s1_fake = dis_s1(img_stage1, caps_emb)
+                # calculate loss
+                stage1_neg_loss = criterion(dis_s1_fake, pos_labels)
+                stage1_kl_div = utils.KL_loss(mu=mu_1, logvar=sig_1)
 
-            # stage 1 generator loss
-            loss_gen_s1 = stage1_neg_loss + config.hyperparameters['gen_loss_kld_reg_param'] * stage1_kl_div
-            loss_gen_s1.backward()
-            opt_gen_s1.step()
+                # stage 1 generator loss
+                loss_gen_s1 = stage1_neg_loss + config.hyperparameters['gen_loss_kld_reg_param'] * stage1_kl_div
+
+            g_s1_scaler.scale(loss_gen_s1).backward()
+            g_s1_scaler.step(opt_gen_s1)
+            g_s1_scaler.update()
 
             loss_gen_s1_avg = loss_gen_s1.item() / len(loader_s1)
 
@@ -249,7 +270,7 @@ def main(args):
 
     if config.load_stage1:
         info1 = utils.load_checkpoint(
-            checkpoint_path='checkpoints/stackgan_checkpoint_epoch_20.pth',
+            checkpoint_path='checkpoints',
             s1_generator=stage1_gen,
             s1_discriminator=stage1_dis,
             s2_generator=stage2_gen,
@@ -267,7 +288,7 @@ def main(args):
 
     if config.load_stage2:
         info2 = utils.load_checkpoint(
-            checkpoint_path='checkpoints/stackgan_checkpoint_epoch_20.pth',
+            checkpoint_path='checkpoints',
             s1_generator=stage1_gen,
             s1_discriminator=stage1_dis,
             s2_generator=stage2_gen,
@@ -281,6 +302,12 @@ def main(args):
     else:
         stage2_gen.apply(utils.weights_init)
         stage2_gen.apply(utils.weights_init)
+
+    # initialize grad scalars for float16 training
+    g_s1_scaler = torch.amp.GradScaler('cuda')
+    d_s1_scaler = torch.amp.GradScaler('cuda')
+    g_s2_scaler = torch.amp.GradScaler('cuda')
+    d_s2_scaler = torch.amp.GradScaler('cuda')
 
     # loss function
     criterion = torch.nn.BCEWithLogitsLoss()
@@ -342,7 +369,7 @@ def main(args):
 
     if start_epoch < args.epochs:
         for epoch in range(start_epoch, args.epochs, 1):
-            print(f"Epoch [{epoch + 1}/{args.epochs - start_epoch}]")
+            print(f"Epoch [{epoch+1}/{args.epochs-start_epoch}]")
             tb_step = train(
                 epoch,
                 gen_s1=stage1_gen,
@@ -353,6 +380,10 @@ def main(args):
                 opt_dis_s1=s1_dis_opt,
                 opt_gen_s2=s2_gen_opt,
                 opt_dis_s2=s2_dis_opt,
+                g_s1_scaler=g_s1_scaler,
+                d_s1_scaler=d_s1_scaler,
+                g_s2_scaler=g_s2_scaler,
+                d_s2_scaler=d_s2_scaler,
                 criterion=criterion,
                 lr_scheduler_gen_s1=lr_scheduler_gen_s1,
                 lr_scheduler_dis_s1=lr_scheduler_dis_s1,
@@ -372,3 +403,23 @@ if __name__ == '__main__':
     parser.add_argument('--train-s2', type=bool, default=True, help="Whether to train stage 2")
 
     main(parser.parse_args())
+
+
+
+"""
+Note:
+    Does not work, some problem with torch.amp. Throws the following error:
+    Epoch [1/50]
+    Epoch: 1:   0%|                                                                                                                                                                                             | 0/253 [00:08<?, ?it/s]
+    Traceback (most recent call last):
+      File "/home/srijan/Desktop/Srijan-files/ai-image-generation-test/stack-gan/train_fp16.py", line 405, in <module>
+        main(parser.parse_args())
+      File "/home/srijan/Desktop/Srijan-files/ai-image-generation-test/stack-gan/train_fp16.py", line 373, in main
+        tb_step = train(
+      File "/home/srijan/Desktop/Srijan-files/ai-image-generation-test/stack-gan/train_fp16.py", line 218, in train
+        g_s1_scaler.step(opt_gen_s1)
+      File "/home/srijan/anaconda3/envs/dl2/lib/python3.10/site-packages/torch/amp/grad_scaler.py", line 453, in step
+        assert (
+    AssertionError: No inf checks were recorded for this optimizer.
+
+"""

@@ -244,7 +244,7 @@ def load_checkpoint(
     # Load model state dictionaries
     s1_generator.load_state_dict(checkpoint['s1_generator_state_dict'])
     s2_generator.load_state_dict(checkpoint['s2_generator_state_dict'])
-    s1_discriminator.load_state_dict(checkpoint['s2_discriminator_state_dict'])
+    s1_discriminator.load_state_dict(checkpoint['s1_discriminator_state_dict'])
     s2_discriminator.load_state_dict(checkpoint['s2_discriminator_state_dict'])
 
     # Load optimizer state dictionaries
@@ -301,7 +301,7 @@ def image_grid_for_tb(num_images, images, captions):
     Returns a grid with images and captions for tensorboard plotting
     Args:
         num_images (int): Number of images in batch
-        images (torch.tensor): A batch of images (C, H, W) or (B, C, H, W).
+        images (torch.tensor): A batch of images (B, C, H, W).
         captions (List[str]): A list of captions for the images.
 
     Returns:
@@ -340,8 +340,8 @@ def tb_log(stage,
     Args:
         stage (str): 'stage1' or 'stage2'
         batch_idx (int): Current batch index
-        loss_gen (torch.Tensor): Generator loss
-        loss_dis (torch.Tensor): Discriminator loss
+        loss_gen (float): Generator loss
+        loss_dis (float): Discriminator loss
         real_img (torch.Tensor): Real images
         caps (): Captions
         fake_img (torch.Tensor): Generated fake images
@@ -349,8 +349,8 @@ def tb_log(stage,
         writer (SummaryWriter): TensorBoard writer
     """
     # Log losses every iteration
-    writer.add_scalar(f'{stage}/generator_loss', loss_gen.item(), tb_step)
-    writer.add_scalar(f'{stage}/discriminator_loss', loss_dis.item(), tb_step)
+    writer.add_scalar(f'{stage}/generator_loss', loss_gen, tb_step)
+    writer.add_scalar(f'{stage}/discriminator_loss', loss_dis, tb_step)
 
     # Log images and captions every 50 iterations
     if batch_idx % 50 == 0:

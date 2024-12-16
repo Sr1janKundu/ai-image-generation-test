@@ -6,7 +6,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 image_dir = '/home/srijan/Desktop/Srijan-files/seq2seq-demo/image_captioning/Flickr_8k_Images_Captions/flickr8k/images/'
 all_captions_file = '/home/srijan/Desktop/Srijan-files/seq2seq-demo/image_captioning/Flickr_8k_Images_Captions/flickr8k/captions.txt'
 
-load_stage1 = False
+load_stage1 = True
 load_stage2 = False
 
 hyperparameters = {

@@ -30,3 +30,4 @@ pro-gan/logs/
 pro-gan/model/
 pro-gan/saved_examples/
 stack-gan/__pycache__/
+stack-gan/logs/

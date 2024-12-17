@@ -95,9 +95,9 @@ def train(
                 dis_s2_real = dis_s2(img, cap_emb)
 
                 # for fake images
-                dis_s2_fake_g1 = dis_s1(img, torch.roll(cap_emb, 1, 0))
-                dis_s2_fake_g2 = dis_s1(img_stage2.detach(),
-                                        cap_emb)  # .detach() in order to reuse dis_s1_real in calculating stage1 generator loss
+                dis_s2_fake_g1 = dis_s2(img, torch.roll(cap_emb, 1, 0))
+                dis_s2_fake_g2 = dis_s2(img_stage2.detach(),
+                                        cap_emb)  # .detach() in order to reuse dis_s2_real in calculating stage1 generator loss
 
                 # positive labels
                 pos_labels = torch.ones_like(dis_s2_real).to(config.device)
@@ -125,7 +125,7 @@ def train(
 
             # train stage 2 generator
             with torch.amp.autocast('cuda'):
-                dis_s2_fake = dis_s1(img_stage2, cap_emb)
+                dis_s2_fake = dis_s2(img_stage2, cap_emb)
                 # calculate loss
                 stage2_neg_loss = criterion(dis_s2_fake, pos_labels)
                 stage2_kl_div = utils.KL_loss(mu=mu_2, logvar=sig_2)
@@ -139,21 +139,21 @@ def train(
 
             loss_gen_s2_avg = loss_gen_s2 / len(loader_s2)
 
+            # logging
+            utils.tb_log(stage="stage2",
+                         batch_idx=batch_idx,
+                         loss_gen=loss_gen_s2_avg,
+                         loss_dis=loss_dis_s2_avg,
+                         real_img=img,
+                         caps=captions,
+                         fake_img=img_stage2,
+                         tb_step=tb_step,
+                         writer=writer)
+            tb_step += 1
+
         # update learning rate
         lr_scheduler_gen_s2.step()
         lr_scheduler_dis_s2.step()
-
-        # logging
-        utils.tb_log(stage="stage2",
-                     batch_idx=batch_idx,
-                     loss_gen=loss_gen_s2_avg,
-                     loss_dis=loss_dis_s2_avg,
-                     real_img=img,
-                     caps=captions,
-                     fake_img=img_stage2,
-                     tb_step=tb_step,
-                     writer=writer)
-        tb_step += 1
 
     else:   # train stage 1 gan
 
@@ -220,21 +220,21 @@ def train(
 
             loss_gen_s1_avg = loss_gen_s1.item() / len(loader_s1)
 
+            # logging
+            utils.tb_log(stage="stage1",
+                         batch_idx=batch_idx,
+                         loss_gen=loss_gen_s1_avg,
+                         loss_dis=loss_dis_s1_avg,
+                         real_img=img,
+                         caps=captions,
+                         fake_img=img_stage1,
+                         tb_step=tb_step,
+                         writer=writer)
+            tb_step += 1
+
         # update learning rate
         lr_scheduler_gen_s1.step()
         lr_scheduler_dis_s1.step()
-
-        # logging
-        utils.tb_log(stage="stage1",
-                     batch_idx=batch_idx,
-                     loss_gen=loss_gen_s1_avg,
-                     loss_dis=loss_dis_s1_avg,
-                     real_img=img,
-                     caps=captions,
-                     fake_img=img_stage1,
-                     tb_step=tb_step,
-                     writer=writer)
-        tb_step += 1
 
     # save everything every 10 epoch
     if epoch % 10 == 0:
@@ -369,7 +369,7 @@ def main(args):
 
     if start_epoch < args.epochs:
         for epoch in range(start_epoch, args.epochs, 1):
-            print(f"Epoch [{epoch+1}/{args.epochs-start_epoch}]")
+            print(f"Epoch [{epoch+1}/{args.epochs}]")
             tb_step = train(
                 epoch,
                 gen_s1=stage1_gen,

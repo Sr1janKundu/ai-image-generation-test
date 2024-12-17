@@ -353,11 +353,11 @@ def tb_log(stage,
     writer.add_scalar(f'{stage}/discriminator_loss', loss_dis, tb_step)
 
     # Log images and captions every 50 iterations
-    if batch_idx % 50 == 0:
-        # Take first 5 images, captions, and generated images
-        num_images = min(5, real_img.size(0))
-        with torch.no_grad():
-            fig_real = image_grid_for_tb(num_images, real_img[:num_images], caps[:num_images])
-            fig_fake = image_grid_for_tb(num_images, fake_img[:num_images], caps[:num_images])
-            writer.add_figure("Real", fig_real, global_step=tb_step, close=True)
-            writer.add_figure("Fake", fig_fake, global_step=tb_step, close=True)
+    # if batch_idx % 5 == 0:
+    #     # Take first 5 images, captions, and generated images
+    num_images = min(5, real_img.size(0))
+    with torch.no_grad():
+        fig_real = image_grid_for_tb(num_images, real_img[:num_images], caps[:num_images])
+        fig_fake = image_grid_for_tb(num_images, fake_img[:num_images], caps[:num_images])
+        writer.add_figure("Real", fig_real, global_step=tb_step, close=True)
+        writer.add_figure("Fake", fig_fake, global_step=tb_step, close=True)

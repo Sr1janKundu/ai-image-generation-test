@@ -145,18 +145,32 @@ def train(
         loop_s1 = tqdm(loader_s1, leave=True, desc=f"Epoch {epoch+1} (stage 1 gan)")
         # loss_dis_s1_avg, loss_gen_s1_avg = 0.0, 0.0
         for batch_idx, (img, caps_emb, captions) in enumerate(loop_s1):
-            opt_dis_s1.zero_grad()
-            opt_gen_s1.zero_grad()
+            # opt_dis_s1.zero_grad()
+            # opt_gen_s1.zero_grad()
 
             img = img.to(config.device)
             caps_emb = caps_emb.to(config.device)
             curr_batch_size_s1 = img.shape[0]
 
+            # positive labels
+            pos_labels = torch.ones_like(curr_batch_size_s1).to(config.device)
+            # negative labels
+            neg_labels = torch.zeros_like(curr_batch_size_s1).to(config.device)
+
             # fixed noise
             noise_vec = torch.FloatTensor(curr_batch_size_s1, config.hyperparameters['latent_dim']).normal_(0.0, 1.0, generator=torch.manual_seed(42)).to(config.device)
 
-            # train stage 1 discriminator
+            # generate fake images
             _, img_stage1, mu_1, sig_1 = gen_s1(caps_emb, noise_vec)
+
+            # train stage 1 discriminator
+            # dis_s1.zero_grad()
+
+            # calculate losses for stage 1 discriminator
+            # errD, errD_real, errD_wrong, errD_fake = utils.compute_discriminator_loss(dis_s1, img, img_stage1, pos_labels, neg_labels, mu_1)
+            # errD.backward()
+            # opt_dis_s1.step()
+
             # for real images
             dis_s1_real = dis_s1(img, caps_emb)
 
@@ -164,10 +178,6 @@ def train(
             dis_s1_fake_g1 = dis_s1(img, torch.roll(caps_emb, 1, 0))
             dis_s1_fake_g2 = dis_s1(img_stage1.detach(), caps_emb)
 
-            # positive labels
-            pos_labels = torch.ones_like(dis_s1_real).to(config.device)
-            # negative labels
-            neg_labels = torch.zeros_like(dis_s1_fake_g1).to(config.device)
 
             # calculate stage 1 discriminator loss
             # positive sample pairs
@@ -187,6 +197,13 @@ def train(
             # loss_dis_s1_avg = loss_dis_s1.item() / len(loader_s1)
 
             # train stage 1 generator
+            # gen_s1.zero_grad()
+            # errG = utils.compute_generator_loss(dis_s1, img_stage1, pos_labels, mu_1)
+            # stage1_kl_div = utils.KL_loss(mu=mu_1, logvar=sig_1)
+            # errG_total = errG + stage1_kl_div * config.hyperparameters['gen_loss_kld_reg_param']
+            # errG_total.backward()
+            # opt_gen_s1.step()
+
             dis_s1_fake = dis_s1(img_stage1, caps_emb)
             # calculate loss
             stage1_neg_loss = criterion(dis_s1_fake, pos_labels)
@@ -202,8 +219,8 @@ def train(
             # logging
             utils.tb_log(stage="stage1",
                          batch_idx=batch_idx,
-                         loss_gen=loss_gen_s1.item(),
-                         loss_dis=loss_dis_s1.item(),
+                         loss_gen=loss_gen_s1.item(),       # loss_gen=errG_total.item()
+                         loss_dis=loss_dis_s1.item(),       # loss_dis=errD.item()
                          real_img=img,
                          caps=captions,
                          fake_img=img_stage1,

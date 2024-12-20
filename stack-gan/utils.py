@@ -87,6 +87,86 @@ def KL_loss(mu, logvar):
     return KLD
 
 
+def compute_discriminator_loss(dis, real_imgs, fake_imgs, real_labels, fake_labels, conds, criterion):
+    """
+
+    Args:
+        dis ():
+        real_imgs ():
+        fake_imgs ():
+        real_labels ():
+        fake_labels ():
+        conds ():
+
+    Returns:
+
+    """
+    conds = conds.detach()
+    fake_imgs = fake_imgs.detach()
+    real_features = dis(real_imgs)
+    fake_features = dis(fake_imgs)
+
+    # real pairs
+    # print("\nHi 1")
+    real_logits = dis.get_cond_logits(real_features, conds)
+    errD_real = criterion(real_logits, real_labels)
+
+    # wrong pairs
+    # print("\nHi 2")
+    wrong_logits = dis.get_cond_logits(real_features, torch.roll(conds, 1, 0))
+    errD_wrong = criterion(wrong_logits, fake_labels)
+    # fake pairs
+
+    # print("\nHi 3")
+    fake_logits = dis.get_cond_logits(fake_features, conds)
+    errD_fake = criterion(fake_logits, fake_labels)
+
+    if dis.get_uncond_logits is not None:
+        # print("\nHi 4")
+        real_logits = dis.get_uncond_logits(real_features)
+        # print("\nHi 5")
+        fake_logits = dis.get_uncond_logits(fake_features)
+        uncond_errD_real = criterion(real_logits, real_labels)
+        uncond_errD_fake = criterion(fake_logits, fake_labels)
+
+        errD = ((errD_real + uncond_errD_real) / 2. + (errD_fake + errD_wrong + uncond_errD_fake) / 3.)
+        errD_real = (errD_real + uncond_errD_real) / 2.
+        errD_fake = (errD_fake + uncond_errD_fake) / 2.
+
+    else:
+        errD = errD_real + (errD_fake + errD_wrong) / 2.
+
+    return errD #, errD_real[0], errD_wrong[0], errD_fake[0]
+
+
+
+def compute_generator_loss(dis, fake_imgs, real_labels, conds, criterion):
+    """
+
+    Args:
+        dis ():
+        fake_imgs ():
+        real_labels ():
+        conds ():
+
+    Returns:
+
+    """
+    conds = conds.detach()
+    fake_features = dis(fake_imgs)
+
+    # fake pairs
+    fake_logits = dis.get_cond_logits(fake_features, conds)
+    errD_fake = criterion(fake_logits, real_labels)
+
+    if dis.get_uncond_logits is not None:
+        fake_logits = dis.get_uncond_logits(fake_features)
+        uncond_errD_fake = criterion(fake_logits, real_labels)
+        errD_fake += uncond_errD_fake
+
+    return errD_fake
+
+
 def weights_init(m):
     """
     Weight initialization (from official implementation)

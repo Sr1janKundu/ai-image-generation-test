@@ -272,7 +272,7 @@ def save_checkpoint(
 
     # Generate filename if not provided
     if filename is None:
-        filename = f'stackgan_checkpoint_epoch_{epoch}.pth'
+        filename = f'stackgan_checkpoint_epoch_{epoch+1}.pth'
 
     # Full path for saving
     full_path = os.path.join(checkpoint_dir, filename)

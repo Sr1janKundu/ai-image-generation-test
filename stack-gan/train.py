@@ -273,9 +273,28 @@ def main(args):
     )
 
     # initialize dataloaders
-    loader_s1 = dataset.get_flickr8k_loader(
-        img_dir=config.image_dir,
-        captions_file=config.all_captions_file,
+    # loader_s1 = dataset.get_flickr8k_loader(
+    #     img_dir=config.image_dir,
+    #     captions_file=config.all_captions_file,
+    #     transform=config.img_trans_stage1,
+    #     text_encoder=utils.get_sentence_embeddings,
+    #     batch_size=config.hyperparameters['batch_size_stage1'],
+    #     shuffle=True,
+    #     num_workers=8
+    # )
+    #
+    # loader_s2 = dataset.get_flickr8k_loader(
+    #     img_dir=config.image_dir,
+    #     captions_file=config.all_captions_file,
+    #     transform=config.img_trans_stage2,
+    #     text_encoder=utils.get_sentence_embeddings,
+    #     batch_size=config.hyperparameters['batch_size_stage2'],
+    #     shuffle=True,
+    #     num_workers=8
+    # )
+    loader_s1 = dataset.get_birds_loader(
+        img_root_dir=config.birds_img_dir,
+        caps_file=config.birds_caps_file,
         transform=config.img_trans_stage1,
         text_encoder=utils.get_sentence_embeddings,
         batch_size=config.hyperparameters['batch_size_stage1'],
@@ -283,9 +302,9 @@ def main(args):
         num_workers=8
     )
 
-    loader_s2 = dataset.get_flickr8k_loader(
-        img_dir=config.image_dir,
-        captions_file=config.all_captions_file,
+    loader_s2 = dataset.get_birds_loader(
+        img_root_dir=config.birds_img_dir,
+        caps_file=config.birds_caps_file,
         transform=config.img_trans_stage2,
         text_encoder=utils.get_sentence_embeddings,
         batch_size=config.hyperparameters['batch_size_stage2'],

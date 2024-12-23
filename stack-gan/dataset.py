@@ -1,3 +1,4 @@
+import json
 import os
 import random
 import pandas as pd
@@ -7,7 +8,7 @@ from utils import get_sentence_embeddings
 import matplotlib.pyplot as plt
 
 import utils
-from config import image_dir, all_captions_file, img_trans_stage1, img_trans_stage2
+from config import image_dir, all_captions_file, img_trans_stage1, img_trans_stage2, birds_img_dir, birds_caps_file
 
 class Flickr8k(Dataset):
     def __init__(self, img_dir, captions_file, idx_col = 'image', cap_col = 'caption', transform=None, text_encoder = get_sentence_embeddings):
@@ -45,6 +46,58 @@ class Flickr8k(Dataset):
         caption_encoded = self.text_encoder(caption).squeeze(0)                         # [1, 768] --> [768]
 
         return img, caption_encoded, caption
+
+
+class Birds(Dataset):
+    def __init__(self, img_root_dir, caps_file, transform=None, text_encoder = get_sentence_embeddings):
+        self.img_root_dir = img_root_dir
+        self.caps_file = caps_file
+        self.transform = transform
+        self.text_encoder = text_encoder
+
+        self.images = []
+
+        for folder in os.listdir(self.img_root_dir):
+            folder_path = os.path.join(self.img_root_dir, folder)
+            for file in os.listdir(folder_path):
+                self.images.append(os.path.join(folder_path, file))
+
+        self.captions = {}
+        try:
+            with open(self.caps_file, 'r') as file:
+                self.captions = json.load(file)
+        except FileNotFoundError:
+            print(f"File not found: {self.caps_file}")
+        except KeyError as e:
+            print(e)
+        except Exception as e:
+            print(f"An error occurred: {e}")
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, index):
+        img = Image.open(self.images[index]).convert("RGB")
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        key = os.path.basename(self.images[index]).split('.')[0]
+        try:
+            captions = self.captions[key]
+            caption = random.choice(captions)
+            caption_encoded = self.text_encoder(caption).squeeze(0)
+            if caption_encoded is not None:
+                return img, caption_encoded, caption
+            else:
+                print(f"Encoded caption is None for {key}. Skipping.")
+                raise IndexError("Skipping this index due to invalid caption.")
+        except KeyError:
+            print(f"Caption for {key} not found.")
+            raise IndexError("Skipping this index due to missing caption.")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            raise IndexError("Skipping this index due to an error.")
 
 
 def get_flickr8k_loaders(img_dir, captions_file, idx_col = 'image', cap_col='caption', transform=None, text_encoder=get_sentence_embeddings,
@@ -121,21 +174,58 @@ def get_flickr8k_loader(img_dir, captions_file, idx_col = 'image', cap_col='capt
     return loader
 
 
-def test():
-    train_loader, val_loader = get_flickr8k_loaders(
-        img_dir=image_dir,
-        captions_file=all_captions_file,
-        transform=img_trans_stage2,
-        text_encoder=get_sentence_embeddings,
-        train_ratio=0.8,
-        batch_size=8,
-        shuffle=True,
-        num_workers=4
+def get_birds_loader(img_root_dir, caps_file, transform=None, text_encoder=get_sentence_embeddings,
+                     batch_size=16, shuffle=True, num_workers=8):
+    """
+
+    Args:
+        img_root_dir:
+        caps_file:
+        transform:
+        text_encoder:
+        batch_size:
+        shuffle:
+        num_workers:
+
+    Returns:
+
+    """
+    dataset = Birds(
+        img_root_dir=img_root_dir,
+        caps_file=caps_file,
+        transform=transform,
+        text_encoder=text_encoder,
     )
 
-    loader = get_flickr8k_loader(
-        img_dir=image_dir,
-        captions_file=all_captions_file,
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
+
+    return loader
+
+
+def test():
+    # train_loader, val_loader = get_flickr8k_loaders(
+    #     img_dir=image_dir,
+    #     captions_file=all_captions_file,
+    #     transform=img_trans_stage2,
+    #     text_encoder=get_sentence_embeddings,
+    #     train_ratio=0.8,
+    #     batch_size=8,
+    #     shuffle=True,
+    #     num_workers=4
+    # )
+
+    # loader = get_flickr8k_loader(
+    #     img_dir=image_dir,
+    #     captions_file=all_captions_file,
+    #     transform=img_trans_stage2,
+    #     text_encoder=get_sentence_embeddings,
+    #     batch_size=8,
+    #     shuffle=True,
+    #     num_workers=4
+    # )
+    loader = get_birds_loader(
+        img_root_dir=birds_img_dir,
+        caps_file=birds_caps_file,
         transform=img_trans_stage2,
         text_encoder=get_sentence_embeddings,
         batch_size=8,

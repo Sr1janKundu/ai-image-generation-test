@@ -5,9 +5,9 @@ Some code are taken from original implementation
 import os
 import matplotlib.pyplot as plt
 import torch
-import numpy as np
 from transformers import DistilBertTokenizer, DistilBertModel
 
+import config
 
 def reverse_transforms(image_tensor):
     """
@@ -32,7 +32,7 @@ def reverse_transforms(image_tensor):
 
 
 def get_sentence_embeddings(sentences,
-                            tokenizer=DistilBertTokenizer.from_pretrained("distilbert-base-uncased"),
+                            tokenizer=DistilBertTokenizer.from_pretrained("distilbert-base-uncased", clean_up_tokenization_spaces=True),
                             model=DistilBertModel.from_pretrained("distilbert-base-uncased"),
                             padding=True,
                             truncation=True,
@@ -54,6 +54,8 @@ def get_sentence_embeddings(sentences,
 
     # Tokenize and encode sentences
     inputs = tokenizer(sentences, return_tensors="pt", padding=padding, truncation=truncation, max_length=max_length)
+    inputs = inputs.to(config.device)
+    model = model.to(config.device)
     model = model.eval()
     with torch.no_grad():
         outputs = model(**inputs)

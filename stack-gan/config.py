@@ -5,6 +5,9 @@ from torchvision.transforms import v2
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 image_dir = '../../seq2seq-demo/image_captioning/Flickr_8k_Images_Captions/flickr8k/images/'
 all_captions_file = '../../seq2seq-demo/image_captioning/Flickr_8k_Images_Captions/flickr8k/captions.txt'
+birds_img_dir = '../dataset/CUB_200_2011/CUB_200_2011/images/'
+birds_caps_dir = '../dataset/CUB_200_2011/captions/birds/text/'
+birds_caps_file = '../dataset/CUB_200_2011/captions/all_captions.json'
 
 load_stage1 = False
 load_stage2 = False

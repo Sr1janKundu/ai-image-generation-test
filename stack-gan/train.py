@@ -216,12 +216,7 @@ def main(args):
             s2_disc_optimizer=s2_dis_opt,
             device=config.device
         )
-    else:
-        stage1_gen.apply(utils.weights_init)
-        stage1_gen.apply(utils.weights_init)
-        stage2_gen = model.GeneratorStage2(stage1_gen).to(config.device)
-
-    if config.load_stage2:
+    elif config.load_stage2:
         info2 = utils.load_checkpoint(
             checkpoint_path=os.path.join('checkpoints', args.checkpoint),
             s1_generator=stage1_gen,
@@ -235,8 +230,10 @@ def main(args):
             device=config.device
         )
     else:
+        stage1_gen.apply(utils.weights_init)
+        stage1_dis.apply(utils.weights_init)
         stage2_gen.apply(utils.weights_init)
-        stage2_gen.apply(utils.weights_init)
+        stage2_dis.apply(utils.weights_init)
 
     # loss function
     criterion = torch.nn.BCEWithLogitsLoss()

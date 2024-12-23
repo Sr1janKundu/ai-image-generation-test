@@ -32,3 +32,4 @@ pro-gan/saved_examples/
 stack-gan/__pycache__/
 stack-gan/logs/
 stack-gan/checkpoints/
+stack-gan/.ipynb_checkpoints/

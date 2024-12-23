@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import torch
 from transformers import DistilBertTokenizer, DistilBertModel
 
+import config
+
 
 def reverse_transforms(image_tensor):
     """
@@ -52,6 +54,9 @@ def get_sentence_embeddings(sentences,
 
     # Tokenize and encode sentences
     inputs = tokenizer(sentences, return_tensors="pt", padding=padding, truncation=truncation, max_length=max_length)
+    inputs = inputs.to(config.device)
+    model = model.to(config.device)
+    model = model.eval()
     with torch.no_grad():
         outputs = model(**inputs)
 

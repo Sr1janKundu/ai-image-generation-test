@@ -68,10 +68,10 @@ def train(
 
         loop_s2 = tqdm(loader_s2, leave=True, desc=f"Epoch {epoch+1} (stage 2 gan)")
 
-        for batch_idx, (img, cap_emb, captions) in enumerate(loop_s2):
+        for batch_idx, (img, caps_emb, captions) in enumerate(loop_s2):
 
             img = img.to(config.device)
-            cap_emb = cap_emb.to(config.device)
+            caps_emb = caps_emb.to(config.device)
             curr_batch_size_s2 = img.shape[0]
 
             # positive labels
@@ -80,10 +80,12 @@ def train(
             neg_labels = torch.FloatTensor(curr_batch_size_s2).fill_(0).to(config.device)
 
             # fixed noise
-            noise_vec = torch.FloatTensor(curr_batch_size_s2, config.hyperparameters['latent_dim']).normal_(0.0, 1.0, generator=torch.manual_seed(42)).to(config.device)
+            noise_vec = torch.FloatTensor(curr_batch_size_s2, config.hyperparameters['latent_dim']).normal_(0.0, 1.0,
+                                                                                                            # generator=torch.manual_seed(42)
+                                                                                                            ).to(config.device)
 
             # generate fake images
-            _, img_stage2, mu_2, sig_2 = gen_s2(cap_emb, noise_vec)
+            _, img_stage2, mu_2, sig_2 = gen_s2(caps_emb, noise_vec)
 
             # train stage 2 discriminator
             dis_s2.zero_grad()
@@ -96,22 +98,26 @@ def train(
             # train stage 2 generator
             gen_s2.zero_grad()
             errG_stage2 = utils.compute_generator_loss(dis_s2, img_stage2, pos_labels, mu_2, criterion)
-            stage2_kl_div_stage2 = utils.KL_loss(mu=mu_2, logvar=sig_2)
-            errG_total_stage2 = errG_stage2 + stage2_kl_div_stage2 * config.hyperparameters['gen_loss_kld_reg_param']
+            kl_div_stage2 = utils.KL_loss(mu=mu_2, logvar=sig_2)
+            errG_total_stage2 = errG_stage2 + kl_div_stage2 * config.hyperparameters['gen_loss_kld_reg_param']
             errG_total_stage2.backward()
             opt_gen_s2.step()
 
-            # logging
-            utils.tb_log(stage="stage2",
-                         batch_idx=batch_idx,
-                         loss_gen=errG_total_stage2.item(),
-                         loss_dis=errD_stage2.item(),
-                         real_img=img,
-                         caps=captions,
-                         fake_img=img_stage2,
-                         tb_step=tb_step,
-                         writer=writer)
-            tb_step += 1
+            if batch_idx % 2 == 0:
+                fixed_noise_vec = torch.FloatTensor(curr_batch_size_s2, config.hyperparameters['latent_dim']).normal_(0.0,1.0, generator=torch.manual_seed(42)).to(config.device)
+                with torch.no_grad():
+                    _, fake, _, _ = gen_s2(caps_emb, fixed_noise_vec)
+                # logging
+                utils.tb_log(stage="stage2",
+                             batch_idx=batch_idx,
+                             loss_gen=errG_total_stage2.item(),
+                             loss_dis=errD_stage2.item(),
+                             real_img=img.detach(),
+                             caps=captions,
+                             fake_img=fake.detach(),
+                             tb_step=tb_step,
+                             writer=writer)
+                tb_step += 1
 
         # update learning rate
         lr_scheduler_gen_s2.step()
@@ -133,7 +139,9 @@ def train(
             neg_labels = torch.FloatTensor(curr_batch_size_s1).fill_(0).to(config.device)
 
             # fixed noise
-            noise_vec = torch.FloatTensor(curr_batch_size_s1, config.hyperparameters['latent_dim']).normal_(0.0, 1.0, generator=torch.manual_seed(42)).to(config.device)
+            noise_vec = torch.FloatTensor(curr_batch_size_s1, config.hyperparameters['latent_dim']).normal_(0.0, 1.0,
+                                                                                                            # generator=torch.manual_seed(42)
+                                                                                                            ).to(config.device)
 
             # generate fake images
             _, img_stage1, mu_1, sig_1 = gen_s1(caps_emb, noise_vec)
@@ -149,22 +157,26 @@ def train(
             # train stage 1 generator
             gen_s1.zero_grad()
             errG_stage1 = utils.compute_generator_loss(dis_s1, img_stage1, pos_labels, mu_1, criterion)
-            stage1_kl_div_stage1 = utils.KL_loss(mu=mu_1, logvar=sig_1)
-            errG_total_stage1 = errG_stage1 + stage1_kl_div_stage1 * config.hyperparameters['gen_loss_kld_reg_param']
+            kl_div_stage1 = utils.KL_loss(mu=mu_1, logvar=sig_1)
+            errG_total_stage1 = errG_stage1 + kl_div_stage1 * config.hyperparameters['gen_loss_kld_reg_param']
             errG_total_stage1.backward()
             opt_gen_s1.step()
 
-            # logging
-            utils.tb_log(stage="stage1",
-                         batch_idx=batch_idx,
-                         loss_gen=errG_total_stage1.item(),
-                         loss_dis=errD_stage1.item(),
-                         real_img=img,
-                         caps=captions,
-                         fake_img=img_stage1,
-                         tb_step=tb_step,
-                         writer=writer)
-            tb_step += 1
+            if batch_idx % 2 == 0:
+                fixed_noise_vec = torch.FloatTensor(curr_batch_size_s1, config.hyperparameters['latent_dim']).normal_(0.0,1.0, generator=torch.manual_seed(42)).to(config.device)
+                with torch.no_grad():
+                    _, fake, _, _ = gen_s1(caps_emb, fixed_noise_vec)
+                # logging
+                utils.tb_log(stage="stage1",
+                             batch_idx=batch_idx,
+                             loss_gen=errG_total_stage1.item(),
+                             loss_dis=errD_stage1.item(),
+                             real_img=img.detach(),
+                             caps=captions,
+                             fake_img=fake.detach(),
+                             tb_step=tb_step,
+                             writer=writer)
+                tb_step += 1
 
         # update learning rate
         lr_scheduler_gen_s1.step()

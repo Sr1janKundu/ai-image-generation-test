@@ -32,8 +32,10 @@ def reverse_transforms(image_tensor):
 
 
 def get_sentence_embeddings(sentences,
-                            tokenizer=DistilBertTokenizer.from_pretrained("distilbert-base-uncased", clean_up_tokenization_spaces=True),
-                            model=DistilBertModel.from_pretrained("distilbert-base-uncased"),
+                            tokenizer,
+                            model,
+                            # tokenizer=DistilBertTokenizer.from_pretrained("distilbert-base-uncased", clean_up_tokenization_spaces=True),
+                            # model=DistilBertModel.from_pretrained("distilbert-base-uncased"),
                             padding=True,
                             truncation=True,
                             max_length=50):
@@ -54,8 +56,8 @@ def get_sentence_embeddings(sentences,
 
     # Tokenize and encode sentences
     inputs = tokenizer(sentences, return_tensors="pt", padding=padding, truncation=truncation, max_length=max_length)
-    inputs = inputs.to(config.device)
-    model = model.to(config.device)
+    # inputs = inputs.to(config.device)
+    # model = model.to(config.device)
     model = model.eval()
     with torch.no_grad():
         outputs = model(**inputs)

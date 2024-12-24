@@ -69,7 +69,8 @@ class ConditionalAugmentation(nn.Module):
 
         """
         std = logvar.mul(0.5).exp_()                        # .exp_() does in-place exponential of the elements
-        eps = torch.FloatTensor(std.size()).normal_().to(config.device)
+        # eps = torch.FloatTensor(std.size()).normal_().to(config.device)
+        eps = torch.randn_like(std)
         # eps = eps.requires_grad_()
         # eps = Variable(eps)
 

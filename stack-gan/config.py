@@ -19,9 +19,9 @@ hyperparameters = {
     "cond_dim": 128,
     "discriminator_dim": 64,
     "stage2_gen_res_count": 4,      # two residual blocks for 128x128 models, 4 for 256x256 blocks
-    "gen_loss_kld_reg_param": 1,    # lambda
-    "train_stage1_for": 25,         # number of epochs to train stage 1 gan first (do 600 to follow paper)
-    "start_lr": 2e-4,
+    "gen_loss_kld_reg_param": 0.3,    # lambda
+    "train_stage1_for": 50,         # number of epochs to train stage 1 gan first (do 600 to follow paper)
+    "start_lr": 2e-4,               # 2e-4
     "batch_size_stage1": 64,
     "batch_size_stage2": 64,
 

@@ -7,6 +7,9 @@ import torch
 import torch.optim as optim
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
+from transformers import DistilBertTokenizer, DistilBertModel
+
+# import torch.multiprocessing as mp
 
 import model_dev as model, dataset, config, utils
 
@@ -273,6 +276,8 @@ def main(args):
     )
 
     # initialize dataloaders
+    tokenizer = DistilBertTokenizer.from_pretrained("distilbert-base-uncased", clean_up_tokenization_spaces=True)
+    txt_emb_model = DistilBertModel.from_pretrained("distilbert-base-uncased")
     # loader_s1 = dataset.get_flickr8k_loader(
     #     img_dir=config.image_dir,
     #     captions_file=config.all_captions_file,
@@ -296,7 +301,7 @@ def main(args):
         img_root_dir=config.birds_img_dir,
         caps_file=config.birds_caps_file,
         transform=config.img_trans_stage1,
-        text_encoder=utils.get_sentence_embeddings,
+        text_encoder=lambda x: utils.get_sentence_embeddings(x, tokenizer, txt_emb_model),
         batch_size=config.hyperparameters['batch_size_stage1'],
         shuffle=True,
         num_workers=8
@@ -306,7 +311,7 @@ def main(args):
         img_root_dir=config.birds_img_dir,
         caps_file=config.birds_caps_file,
         transform=config.img_trans_stage2,
-        text_encoder=utils.get_sentence_embeddings,
+        text_encoder=lambda x: utils.get_sentence_embeddings(x, tokenizer, txt_emb_model),
         batch_size=config.hyperparameters['batch_size_stage2'],
         shuffle=True,
         num_workers=8
@@ -356,4 +361,5 @@ if __name__ == '__main__':
     parser.add_argument('--train-s2', type=bool, default=True, help="Whether to train stage 2")
     parser.add_argument('--checkpoint', type=str, help="Name of latest checkpoint file, if config.load_stage1 or config.load_stage2 is True")
 
+    # mp.set_start_method("spawn")
     main(parser.parse_args())

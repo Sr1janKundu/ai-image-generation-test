@@ -5,9 +5,9 @@ Some code are taken from original implementation
 import os
 import matplotlib.pyplot as plt
 import torch
-from transformers import DistilBertTokenizer, DistilBertModel
+# from transformers import DistilBertTokenizer, DistilBertModel
 
-import config
+# import config
 
 def reverse_transforms(image_tensor):
     """

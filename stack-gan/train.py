@@ -218,21 +218,12 @@ def main(args):
     s2_gen_opt = optim.Adam(stage2_gen.parameters(), lr = config.hyperparameters['start_lr'], betas=(0.5, 0.999))
     s2_dis_opt = optim.Adam(stage2_dis.parameters(), lr = config.hyperparameters['start_lr'], betas=(0.5, 0.999))
 
-    if config.load_stage1:
-        info1 = utils.load_checkpoint(
-            checkpoint_path=os.path.join('checkpoints', args.checkpoint),
-            s1_generator=stage1_gen,
-            s1_discriminator=stage1_dis,
-            s2_generator=stage2_gen,
-            s2_discriminator=stage2_dis,
-            s1_gen_optimizer=s1_gen_opt,
-            s1_disc_optimizer=s1_dis_opt,
-            s2_gen_optimizer=s2_gen_opt,
-            s2_disc_optimizer=s2_dis_opt,
-            device=config.device
-        )
-    elif config.load_stage2:
-        info2 = utils.load_checkpoint(
+    # Initialize checkpoint info
+    checkpoint_info = None
+
+    # Load checkpoint if requested
+    if config.load_stage1 or config.load_stage2:
+        checkpoint_info = utils.load_checkpoint(
             checkpoint_path=os.path.join('checkpoints', args.checkpoint),
             s1_generator=stage1_gen,
             s1_discriminator=stage1_dis,
@@ -245,6 +236,7 @@ def main(args):
             device=config.device
         )
     else:
+        # Initialize weights if not loading from checkpoint
         stage1_gen.apply(utils.weights_init)
         stage1_dis.apply(utils.weights_init)
         stage2_gen.apply(utils.weights_init)
@@ -278,6 +270,7 @@ def main(args):
     # initialize dataloaders
     tokenizer = DistilBertTokenizer.from_pretrained("distilbert-base-uncased", clean_up_tokenization_spaces=True)
     txt_emb_model = DistilBertModel.from_pretrained("distilbert-base-uncased")
+
     # loader_s1 = dataset.get_flickr8k_loader(
     #     img_dir=config.image_dir,
     #     captions_file=config.all_captions_file,
@@ -297,6 +290,7 @@ def main(args):
     #     shuffle=True,
     #     num_workers=8
     # )
+
     loader_s1 = dataset.get_birds_loader(
         img_root_dir=config.birds_img_dir,
         caps_file=config.birds_caps_file,
@@ -324,10 +318,7 @@ def main(args):
     writer = SummaryWriter(f"logs/")
 
     # start training
-    start_epoch = (
-        info2.get('epoch', 0) if config.load_stage2 else
-        info1.get('epoch', 0) if config.load_stage1 else
-        0)
+    start_epoch = checkpoint_info.get('epoch', 0) if checkpoint_info else 0
 
     if start_epoch < args.epochs:
         for epoch in range(start_epoch, args.epochs, 1):

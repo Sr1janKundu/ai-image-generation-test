@@ -9,8 +9,8 @@ birds_img_dir = '../dataset/CUB_200_2011/CUB_200_2011/images/'
 birds_caps_dir = '../dataset/CUB_200_2011/captions/birds/text/'
 birds_caps_file = '../dataset/CUB_200_2011/captions/all_captions.json'
 
-load_stage1 = False
-load_stage2 = False
+load_stage1 = True
+load_stage2 = True
 
 hyperparameters = {
     "upsampling_mode": "nearest",

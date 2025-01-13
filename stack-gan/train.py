@@ -106,7 +106,7 @@ def train(
             errG_total_stage2.backward()
             opt_gen_s2.step()
 
-            if batch_idx % 2 == 0:
+            if batch_idx % 10 == 0:
                 fixed_noise_vec = torch.FloatTensor(curr_batch_size_s2, config.hyperparameters['latent_dim']).normal_(0.0,1.0, generator=torch.manual_seed(42)).to(config.device)
                 with torch.no_grad():
                     _, fake, _, _ = gen_s2(caps_emb, fixed_noise_vec)
@@ -165,7 +165,7 @@ def train(
             errG_total_stage1.backward()
             opt_gen_s1.step()
 
-            if batch_idx % 2 == 0:
+            if batch_idx % 10 == 0:
                 fixed_noise_vec = torch.FloatTensor(curr_batch_size_s1, config.hyperparameters['latent_dim']).normal_(0.0,1.0, generator=torch.manual_seed(42)).to(config.device)
                 with torch.no_grad():
                     _, fake, _, _ = gen_s1(caps_emb, fixed_noise_vec)
@@ -186,8 +186,8 @@ def train(
         lr_scheduler_dis_s1.step()
 
 
-    # save everything every 5 epoch
-    if (epoch + 1) % 5 == 0:
+    # save everything every 25 epoch
+    if (epoch + 1) % 25 == 0:
         save_path = utils.save_checkpoint(
             s1_generator=gen_s1,
             s1_discriminator=dis_s1,

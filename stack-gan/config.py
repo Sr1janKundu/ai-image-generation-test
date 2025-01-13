@@ -9,8 +9,8 @@ birds_img_dir = '../dataset/CUB_200_2011/CUB_200_2011/images/'
 birds_caps_dir = '../dataset/CUB_200_2011/captions/birds/text/'
 birds_caps_file = '../dataset/CUB_200_2011/captions/all_captions.json'
 
-load_stage1 = True
-load_stage2 = True
+load_stage1 = False
+load_stage2 = False
 
 hyperparameters = {
     "upsampling_mode": "nearest",
@@ -18,10 +18,10 @@ hyperparameters = {
     "embedding_dim": 768,
     "cond_dim": 128,
     "discriminator_dim": 64,
-    "stage2_gen_res_count": 4,      # two residual blocks for 128x128 models, 4 for 256x256 blocks
-    "gen_loss_kld_reg_param": 0.3,    # lambda
-    "train_stage1_for": 50,         # number of epochs to train stage 1 gan first (do 600 to follow paper)
-    "start_lr": 2e-4,               # 2e-4
+    "stage2_gen_res_count": 4,          # two residual blocks for 128x128 models, 4 for 256x256 blocks
+    "gen_loss_kld_reg_param": 0.3,      # lambda
+    "train_stage1_for": 600,            # number of epochs to train stage 1 gan first (do 600 to follow paper)
+    "start_lr": 2e-4,                   # 2e-4
     "batch_size_stage1": 64,
     "batch_size_stage2": 64,
 

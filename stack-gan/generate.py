@@ -6,14 +6,20 @@ import matplotlib.pyplot as plt
 import config
 from utils import get_sentence_embeddings, reverse_transforms
 from model import GeneratorStage1, GeneratorStage2
+from transformers import DistilBertTokenizer, DistilBertModel
+
 
 def generate(args):
     checkpoint_path = os.path.join('checkpoints', args.checkpoint)
-    checkpoint = torch.load(checkpoint_path, map_location=config.device)
+    checkpoint = torch.load(checkpoint_path, map_location=config.device, weights_only=True)
     noise_vec = torch.randn(1, 100).to(config.device)
     input_caption = input("Enter the caption:\n")
     # input_caption = ["A dog", "A cat."]
-    text_embedding = get_sentence_embeddings([input_caption]).to(config.device)
+    tokenizer = DistilBertTokenizer.from_pretrained("distilbert-base-uncased", clean_up_tokenization_spaces=True)
+    txt_emb_model = DistilBertModel.from_pretrained("distilbert-base-uncased")
+    text_embedding = get_sentence_embeddings(sentences=[input_caption],
+                                             tokenizer=tokenizer,
+                                             model=txt_emb_model).to(config.device)
     # text_embedding = get_sentence_embeddings(input_caption).to(config.device)
     gen1 = GeneratorStage1().to(config.device)
     gen1.load_state_dict(checkpoint['s1_generator_state_dict'])
@@ -47,6 +53,6 @@ def generate(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Generating images with StackGAN")
-    parser.add_argument('--checkpoint', type=str, default='stackgan_checkpoint_epoch_45.pth', help='Name of latest checkpoint file')
+    parser.add_argument('--checkpoint', type=str, default='stackgan_checkpoint_epoch_650.pth', help='Name of latest checkpoint file')
 
     generate(parser.parse_args())

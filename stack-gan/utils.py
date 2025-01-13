@@ -104,6 +104,7 @@ def compute_discriminator_loss(dis, real_imgs, fake_imgs, real_labels, fake_labe
         real_labels ():
         fake_labels ():
         conds ():
+        criterion ():
 
     Returns:
 

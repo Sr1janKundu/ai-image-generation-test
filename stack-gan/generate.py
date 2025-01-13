@@ -53,6 +53,6 @@ def generate(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Generating images with StackGAN")
-    parser.add_argument('--checkpoint', type=str, default='stackgan_checkpoint_epoch_650.pth', help='Name of latest checkpoint file')
+    parser.add_argument('--checkpoint', type=str, default='stackgan_checkpoint_epoch_675.pth', help='Name of latest checkpoint file')
 
     generate(parser.parse_args())
